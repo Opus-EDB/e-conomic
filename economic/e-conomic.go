@@ -8,8 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-
-	"moul.io/http2curl"
 )
 
 type Layout struct {
@@ -57,8 +55,6 @@ func callRestAPI(endpoint, method string, request, response any) error {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	client := http.DefaultClient
-	curlCmd, _ := http2curl.GetCurlCommand(req)
-	log.Printf("curl: %s", curlCmd)
 	res, err := client.Do(req)
 	if err != nil {
 		log.Printf("error in calling e-conomic (%s %s) err: %s", url, method, err)
@@ -134,8 +130,6 @@ func callAPI(endpoint string, method string, params url.Values, body interface{}
 		}
 		req.Body = io.NopCloser(bytes.NewReader(jsonBody))
 	}
-	curlCmd, _ := http2curl.GetCurlCommand(req)
-	log.Printf("curl: %s", curlCmd)
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
