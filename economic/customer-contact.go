@@ -27,7 +27,7 @@ func UpdateOrCreateContact(customer Customer, contact CustomerContact) error {
 	customers := FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
 	if len(customers) == 0 {
 		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		customer, err := CreateCustomer(customer)
+		err := customer.Create()
 		if err != nil {
 			log.Printf("Error: %s", err)
 			return err
