@@ -49,7 +49,6 @@ func callRestAPI(endpoint, method string, request, response any) error {
 	}
 	grant := c.AgreementGrant
 	secret := c.AppSecretToken
-	log.Printf("grant: %s, secret: %s", grant, secret)
 	req.Header.Set("X-AppSecretToken", secret)
 	req.Header.Set("X-AgreementGrantToken", grant)
 	req.Header.Set("Content-Type", "application/json")
@@ -109,7 +108,6 @@ func callAPI(endpoint string, method string, params url.Values, body interface{}
 	if grant == "" || secret == "" {
 		panic("missing agreement grant or app secret")
 	}
-	log.Printf("grant: %s, secret: %s", grant, secret)
 	req := &http.Request{
 		Method: method,
 		URL: &url.URL{Path: endpoint, RawQuery: params.Encode(),
