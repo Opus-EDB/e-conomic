@@ -62,26 +62,23 @@ func GetOrCreateCustomer(customer Customer, contact CustomerContact) (Customer, 
 	return customer, err
 }
 
-func UpdateOrCreateCustomer(customer Customer) (Customer, error) {
+// Updates or creates a company based on the corporate identification number.
+func UpdateOrCreateCustomer(customer Customer) error {
 	customers := FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
 	if len(customers) == 0 {
 		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
 		err := customer.Create()
 		if err != nil {
 			log.Printf("Error: %s", err)
-			return customer, err
+			return err
 		}
 		customers = append(customers, customer)
 	}
 	if len(customers) > 1 {
-		return customer, fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
+		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
 	}
-	return UpdateCustomer(customers[0].CustomerNumber, customer)
-}
-
-func UpdateCustomer(customerNumber int, ecoCustomer Customer) (Customer, error) {
-	err := callRestAPI(fmt.Sprintf("customers/%d", customerNumber), http.MethodPut, ecoCustomer, nil)
-	return ecoCustomer, err
+	customer.CustomerNumber = customers[0].CustomerNumber
+	return customer.Update()
 }
 
 func FindCustomerByOrgNumber(org string) []Customer {
