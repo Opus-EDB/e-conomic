@@ -88,55 +88,6 @@ func UpdateOrCreateCustomer(customer Customer) (Customer, error) {
 	return UpdateCustomer(customers[0].CustomerNumber, customer)
 }
 
-func UpdateOrCreateContact(customer Customer, contact CustomerContact) error {
-	customers := FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
-	if len(customers) == 0 {
-		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		customer, err := CreateCustomer(customer)
-		if err != nil {
-			log.Printf("Error: %s", err)
-			return err
-		}
-		customers = append(customers, customer)
-	}
-	if len(customers) > 1 {
-		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
-	}
-	customer = customers[0]
-	contacts, err := getCustomerContacts(customer.CustomerNumber)
-	if err != nil {
-		log.Printf("Error: %s", err)
-		return err
-	}
-	// Check if contact already exists - search by email, phone or name
-	for _, c := range contacts {
-		if c.Email == contact.Email || c.Phone == contact.Phone || c.Name == contact.Name {
-			contact.CustomerContactNumber = c.CustomerContactNumber
-			customerId := customer.CustomerNumber
-			path := fmt.Sprintf("customers/%d/contacts/%d", customerId, contact.CustomerContactNumber)
-			err := callRestAPI(path, http.MethodPut, contact, &contact)
-			if err != nil {
-				log.Printf("Error: %s", err)
-			}
-			return nil
-		}
-	}
-	_, err = createCustomerContact(customer.CustomerNumber, contact)
-	if err != nil {
-		log.Printf("Error: %s", err)
-	}
-	return err
-}
-
-func createCustomerContact(customerNumber int, contact CustomerContact) (CustomerContact, error) {
-	var createdContact CustomerContact
-	err := callRestAPI(fmt.Sprintf("customers/%d/contacts", customerNumber), http.MethodPost, contact, &createdContact)
-	if err != nil {
-		return createdContact, err
-	}
-	return createdContact, err
-}
-
 func UpdateCustomer(customerNumber int, ecoCustomer Customer) (Customer, error) {
 	err := callRestAPI(fmt.Sprintf("customers/%d", customerNumber), http.MethodPut, ecoCustomer, nil)
 	return ecoCustomer, err
@@ -151,23 +102,6 @@ func FindCustomerByOrgNumber(org string) []Customer {
 		log.Printf("Error: %s", err)
 	}
 	return resp.Collection
-}
-
-func getCustomerContacts(customerNumber int) ([]CustomerContact, error) {
-	cc := CollectionReponse[CustomerContact]{}
-	err := callRestAPI(fmt.Sprintf("customers/%d/contacts", customerNumber), http.MethodGet, nil, &cc)
-	if err != nil {
-		log.Printf("Error: %s", err)
-	}
-	return cc.Collection, err
-}
-
-func (c *Customer) ID() int {
-	return c.CustomerNumber
-}
-
-func (c *Customer) SetID(id int) {
-	c.CustomerNumber = id
 }
 
 // Customer represents a customer, aka. Debtor.
