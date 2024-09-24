@@ -23,15 +23,6 @@ func (c *Customer) Delete() error {
 	return err
 }
 
-func CreateCustomer(customer Customer) (Customer, error) {
-	var createdCustomer Customer
-	err := callRestAPI("customers", http.MethodPost, customer, &createdCustomer)
-	if err != nil {
-		return createdCustomer, err
-	}
-	return createdCustomer, err
-}
-
 // GetCustomer gets a customer from economic by customer number. If the customer does not exist, it creates a new customer in economic using the provided.
 func GetOrCreateCustomer(customer Customer, contact CustomerContact) (Customer, error) {
 	if customer.CorporateIdentificationNumber == "" && customer.VatNumber == "" {
@@ -42,7 +33,7 @@ func GetOrCreateCustomer(customer Customer, contact CustomerContact) (Customer, 
 	customers := FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
 	if len(customers) == 0 {
 		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		customer, err := CreateCustomer(customer)
+		err := customer.Create()
 		if err != nil {
 			log.Printf("Error: %s", err)
 			return customer, err
@@ -75,7 +66,7 @@ func UpdateOrCreateCustomer(customer Customer) (Customer, error) {
 	customers := FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
 	if len(customers) == 0 {
 		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		customer, err := CreateCustomer(customer)
+		err := customer.Create()
 		if err != nil {
 			log.Printf("Error: %s", err)
 			return customer, err
