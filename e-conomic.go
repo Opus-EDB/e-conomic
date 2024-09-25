@@ -61,7 +61,6 @@ func callRestAPI(endpoint, method string, request, response any) error {
 	}
 	defer res.Body.Close()
 	body := new(bytes.Buffer)
-
 	body.ReadFrom(res.Body)
 	log.Printf("status code from e-conomic: %d", res.StatusCode)
 	if res.StatusCode >= 400 {

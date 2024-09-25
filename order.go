@@ -4,32 +4,138 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 )
 
-func CreateInvoice(order *Order) (err error) {
-	resp := map[string]any{}
-	err = callRestAPI("invoices/drafts", http.MethodPost, order, &resp)
+func CreateInvoice(order *Order) (invoice Invoice, err error) {
+	err = callRestAPI("invoices/drafts", http.MethodPost, order, &invoice)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
-		return err
 	}
-	log.Printf("Order created: %#v", resp)
-	if resp["draftInvoiceNumber"] == nil {
-		return fmt.Errorf("draftInvoiceNumber not found in response")
+	return
+}
+
+// Deletes a draft invoice, i.e. not booked
+func DeleteInvoice(invoiceNo int) (err error) {
+	err = callRestAPI(fmt.Sprintf("invoices/drafts/%d", invoiceNo), http.MethodDelete, nil, nil)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
 	}
-	invoiceNo := int(resp["draftInvoiceNumber"].(float64))
-	body := DraftInvoiceBody{
-		DraftInvoice: DraftInvoice{
-			DraftInvoiceNumber: invoiceNo,
+	return
+}
+
+// Finds an invoice by reference. The reference is usually your internal order number.
+// if the returned invoice has a booked invoice number not equal to zero, it is booked
+// if the returned invoice has a draft invoice number not equal to zero, it is a draft
+func GetInvoiceByRef(ref string) (invoice Invoice, err error) {
+	invoice, err = GetDraftInvoiceByRef(ref)
+	if err == nil {
+		return
+	}
+	invoice, err = GetBookedInvoiceByRef(ref)
+	if err == nil {
+		return
+	}
+	log.Printf("ERROR: %#v", err)
+	err = fmt.Errorf("unable to find invoice with ref %s", ref)
+	return
+}
+
+func GetDraftInvoiceByRef(ref string) (invoice Invoice, err error) {
+	filter := &Filter{}
+	ref = url.QueryEscape(ref)
+	filter.AndCondition("references.other", FilterOperatorSubstringMatch, ref)
+	results := CollectionReponse[Invoice]{}
+	err = callRestAPI(fmt.Sprintf("invoices/drafts?filter="+filter.filterStr), http.MethodGet, nil, &results)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
+		return
+	}
+	if len(results.Collection) != 1 {
+		log.Printf("ERROR: %#v", results)
+		err = fmt.Errorf("unable to make unique match with ref %s", ref)
+		return
+	}
+	invoice = results.Collection[0]
+	return
+}
+
+func BookInvoice(invoiceNo int) (invoice Invoice, err error) {
+	body := map[string]map[string]int{"draftInvoice": {"draftInvoiceNumber": invoiceNo}}
+	err = callRestAPI("invoices/booked", http.MethodPost, body, &invoice)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
+	}
+	return
+}
+
+// Fails if no unique match is found on 'other references'
+func GetBookedInvoiceByRef(ref string) (invoice Invoice, err error) {
+	filter := &Filter{}
+	ref = url.QueryEscape(ref)
+	filter.AndCondition("references.other", FilterOperatorSubstringMatch, ref)
+	results := CollectionReponse[Invoice]{}
+	err = callRestAPI(fmt.Sprintf("invoices/booked?filter="+filter.filterStr), http.MethodGet, nil, &results)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
+		return
+	}
+	if len(results.Collection) != 1 {
+		log.Printf("ERROR: %#v", results)
+		err = fmt.Errorf("unable to make unique match with ref %s", ref)
+		return
+	}
+	invoice = results.Collection[0]
+	return
+}
+
+func GetBookedInvoices() (invoices []Invoice, err error) {
+	results := CollectionReponse[Invoice]{}
+	err = callRestAPI("invoices/booked", http.MethodGet, nil, &results)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
+		return
+	}
+	invoices = results.Collection
+	return
+}
+
+// Creates a credit note based on a booked invoice with a unique reference (usually your internal order number)
+// The credit note will have negative amounts and can be booked similarly to a regular invoice
+func CreditInvoiceByRef(ref string) (creditNote Invoice, err error) {
+	invoiceToCredit, err := GetBookedInvoiceByRef(ref)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
+		return
+	}
+	creditGrossAmount := -invoiceToCredit.GrossAmount
+	creditNetAmount := -invoiceToCredit.NetAmount
+	creditVatAmount := -invoiceToCredit.VatAmount
+	order := &Order{
+		Date:     invoiceToCredit.Date,
+		Currency: invoiceToCredit.Currency,
+		Layout: Layout{
+			LayoutNumber: invoiceToCredit.LayoutNumber,
 		},
+		PaymentTerms: PaymentTerms{
+			PaymentTermsNumber: invoiceToCredit.PaymentTermsNumber,
+		},
+		Customer: CustomerID{CustomerNumber: invoiceToCredit.CustomerNumber},
+		Recipient: Recipient{
+			Name:    invoiceToCredit.RecipientName,
+			Address: invoiceToCredit.RecipientAddress,
+			City:    invoiceToCredit.RecipientCity,
+			Zip:     invoiceToCredit.RecipientZip,
+			VatZone: VatZone{VatZoneNumber: invoiceToCredit.VatZoneNumber},
+		},
+		GrossAmount: &creditGrossAmount,
+		NetAmount:   creditNetAmount,
+		VatAmount:   creditVatAmount,
 	}
-	resp = map[string]any{}
-	err = callRestAPI("invoices/booked", http.MethodPost, body, &resp)
+	creditNote, err = CreateInvoice(order)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
-		return err
 	}
-	log.Printf("Order booked: %#v", resp)
 	return
 }
 
