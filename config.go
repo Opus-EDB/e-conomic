@@ -9,12 +9,16 @@ import (
 var c *Config
 
 func init() {
+	readConfig()
+}
+
+func readConfig() {
 	conf := os.Getenv("ECONOMIC_CONFIG_FILE")
 	if conf == "" {
 		agt := os.Getenv("ECONOMIC_AGREEMENT_GRANT_TOKEN")
 		ast := os.Getenv("ECONOMIC_APP_SECRET_TOKEN")
-		if len(agt) == 0 || len(ast) == 0 {
-			log.Printf("WARNING: ECONOMIC_CONFIG_FILE or ECONOMIC_AGREEMENT_GRANT_TOKEN and ECONOMIC_APP_SECRET_TOKEN must be set")
+		if len(agt) < 4 || len(ast) < 4 {
+			log.Printf("WARNING: ECONOMIC_CONFIG_FILE or ECONOMIC_AGREEMENT_GRANT_TOKEN and ECONOMIC_APP_SECRET_TOKEN must be valid")
 			return
 		}
 		log.Printf("Read config from env: Grant %sXXXXXX, App %sXXXXXX", agt[:4], ast[:4])
@@ -26,10 +30,20 @@ func init() {
 	}
 	config, err := getConfigFromFile(conf)
 	if err != nil {
-		panic(err)
+		log.Printf("Error reading config file: %s", err)
+		return
+	}
+	if len(config.AgreementGrant) < 4 || len(config.AppSecretToken) < 4 {
+		log.Printf("WARNING: Config file must contain valid agreement_grant and app_secret")
+		return
 	}
 	log.Printf("Read config from file: Grant %sXXXXXX, App %sXXXXXX", config.AgreementGrant[:4], config.AppSecretToken[:4])
 	c = &config
+}
+
+// InititializeConfig sets the config to be used by the package
+func InititializeConfig(config *Config) {
+	c = config
 }
 
 func getConfigFromFile(path string) (Config, error) {
