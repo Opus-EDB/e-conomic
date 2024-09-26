@@ -15,6 +15,7 @@ func init() {
 		ast := os.Getenv("ECONOMIC_APP_SECRET_TOKEN")
 		if len(agt) == 0 || len(ast) == 0 {
 			log.Printf("WARNING: ECONOMIC_CONFIG_FILE or ECONOMIC_AGREEMENT_GRANT_TOKEN and ECONOMIC_APP_SECRET_TOKEN must be set")
+			return
 		}
 		log.Printf("Read config from env: Grant %sXXXXXX, App %sXXXXXX", agt[:4], ast[:4])
 		c = &Config{
