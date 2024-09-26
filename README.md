@@ -8,7 +8,7 @@ import (
 	economic "github.com/Opus-EDB/e-conomic"
 )
 
-func main() {
+func init() {
 	config := economic.Config{
 		AgreementGrant: "MY_AGREEMENT_GRANT_TOKEN",
 		AppSecretToken: "MY_SECRET_APP_TOKEN",
