@@ -41,8 +41,8 @@ func readConfig() {
 	c = &config
 }
 
-// InititializeConfig sets the config to be used by the package
-func InititializeConfig(config *Config) {
+// InitializeConfig sets the config to be used by the package
+func InitializeConfig(config *Config) {
 	c = config
 }
 
