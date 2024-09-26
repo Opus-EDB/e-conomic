@@ -24,6 +24,22 @@ func DeleteInvoice(invoiceNo int) (err error) {
 	return
 }
 
+func GetDraftInvoice(invoiceNo int) (invoice Invoice, err error) {
+	err = callRestAPI(fmt.Sprintf("invoices/drafts/%d", invoiceNo), http.MethodGet, nil, &invoice)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
+	}
+	return
+}
+
+func GetBookedInvoice(invoiceNo int) (invoice Invoice, err error) {
+	err = callRestAPI(fmt.Sprintf("invoices/booked/%d", invoiceNo), http.MethodGet, nil, &invoice)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
+	}
+	return
+}
+
 // Finds an invoice by reference. The reference is usually your internal order number.
 // if the returned invoice has a booked invoice number not equal to zero, it is booked
 // if the returned invoice has a draft invoice number not equal to zero, it is a draft

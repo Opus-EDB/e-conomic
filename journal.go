@@ -74,3 +74,24 @@ func GetCashPaymentById(id int) (JournalEntry, error) {
 	je = resp.Items[0]
 	return je, err
 }
+
+func GetBookedCashPaymentById(id int) (JournalEntry, error) {
+	je := JournalEntry{}
+	resp := ItemsReponse[JournalEntry]{}
+	params := url.Values{
+		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
+	}
+	err := callAPI("/journalsapi/v6.0.0/booked-entries", http.MethodGet, params, nil, &resp)
+	if err != nil {
+		log.Printf("Error: %s", err)
+	}
+	if len(resp.Items) == 0 {
+		return je, fmt.Errorf("no payment with id %d", id)
+	}
+	je = resp.Items[0]
+	return je, err
+}
+
+func BookAllEntries(journalNumber int) error {
+	return callAPI(fmt.Sprintf("/journalsapi/v6.0.0/journals/%d/book", journalNumber), http.MethodPost, url.Values{}, nil, nil)
+}

@@ -2,8 +2,20 @@ package economic
 
 import (
 	"log"
+	"net/http"
 	"testing"
 )
+
+func TestWhoami(t *testing.T) {
+	resp := map[string]any{}
+	err := callRestAPI("/self", http.MethodGet, nil, &resp)
+	if err != nil {
+		t.Fatalf("Error: %s", err)
+	}
+	log.Printf("agreementNumber: %d", int(resp["agreementNumber"].(float64)))
+	log.Printf("application.AppNumber: %d", int(resp["application"].(map[string]any)["appNumber"].(float64)))
+	t.Fatalf("%v", resp)
+}
 
 func TestFindCustomerByName(t *testing.T) {
 	c := Customer{
