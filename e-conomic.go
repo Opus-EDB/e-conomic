@@ -123,12 +123,14 @@ func callAPI(endpoint string, method string, params url.Values, body interface{}
 		req.Header.Set("Content-Type", "application/json")
 		jsonBody, err := json.Marshal(body)
 		if err != nil {
+			log.Printf("error in marshalling request: %s", err)
 			return err
 		}
 		req.Body = io.NopCloser(bytes.NewReader(jsonBody))
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Printf("error in calling e-conomic (%s %s) err: %s", endpoint, method, err)
 		return err
 	}
 	defer resp.Body.Close()
@@ -148,7 +150,6 @@ func callAPI(endpoint string, method string, params url.Values, body interface{}
 		err = json.NewDecoder(resp.Body).Decode(response)
 	}
 	log.Printf("status code from e-conomic: %d", resp.StatusCode)
-
 	return err
 }
 

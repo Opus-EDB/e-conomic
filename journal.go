@@ -30,8 +30,12 @@ type JournalEntry struct {
 	Text                string      `json:"text,omitempty"`
 	VatCode             string      `json:"vatCode,omitempty"`
 	ContraVatCode       string      `json:"contraVatCode,omitempty"`
+	IsCredit            bool        `json:"isCredit,omitempty"`
 }
 
+// Create a draft of a cash payment.
+// If the entry is created successfully, the EntryNumber field will be set.
+// Set IsCredit to true if the amount should be negative.
 func (j *JournalEntry) CreateEntry() error {
 	resp := map[string]any{}
 	err := callAPI("/journalsapi/v6.0.0/draft-entries/", http.MethodPost, url.Values{}, j, &resp)
@@ -75,13 +79,20 @@ func GetCashPaymentById(id int) (JournalEntry, error) {
 	return je, err
 }
 
+// Get a booked cash payment by its voucher number.
+// There are basically two fields that may be interesting to you:
+// - VoucherNumber: The voucher number of the payment.
+// - Amount: The amount of the payment.
+//
+// If you need to credit the payment fill in the remaining fields and set IsCredit to true.
+// The amount will always be negative when IsCredit=true.
 func GetBookedCashPaymentById(id int) (JournalEntry, error) {
 	je := JournalEntry{}
 	resp := ItemsReponse[JournalEntry]{}
 	params := url.Values{
 		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
 	}
-	err := callAPI("/journalsapi/v6.0.0/booked-entries", http.MethodGet, params, nil, &resp)
+	err := callAPI("/bookedEntriesapi/v2.0.0/booked-entries", http.MethodGet, params, nil, &resp)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
