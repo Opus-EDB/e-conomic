@@ -60,7 +60,7 @@ func GetInvoiceByRef(ref string) (invoice Invoice, err error) {
 func GetDraftInvoiceByRef(ref string) (invoice Invoice, err error) {
 	filter := &Filter{}
 	ref = url.QueryEscape(ref)
-	filter.AndCondition("references.other", FilterOperatorSubstringMatch, ref)
+	filter.AndCondition("references.other", FilterOperatorEquals, ref)
 	results := CollectionReponse[Invoice]{}
 	err = callRestAPI(fmt.Sprintf("invoices/drafts?filter="+filter.filterStr), http.MethodGet, nil, &results)
 	if err != nil {
@@ -89,7 +89,7 @@ func BookInvoice(invoiceNo int) (invoice Invoice, err error) {
 func GetBookedInvoiceByRef(ref string) (invoice Invoice, err error) {
 	filter := &Filter{}
 	ref = url.QueryEscape(ref)
-	filter.AndCondition("references.other", FilterOperatorSubstringMatch, ref)
+	filter.AndCondition("references.other", FilterOperatorEquals, ref)
 	results := CollectionReponse[Invoice]{}
 	err = callRestAPI(fmt.Sprintf("invoices/booked?filter="+filter.filterStr), http.MethodGet, nil, &results)
 	if err != nil {
