@@ -13,6 +13,16 @@ func init() {
 }
 
 func readConfig() {
+	// XXX(aks): the learnx API depends on some subtle semantics here:
+	//  - It cannot provide config as environment variables (we don't know
+	//    our config during init()), so we expect to see the warning below
+	//    and depends on it not being "upgraded" to an error/panic.
+	//  - It uses InitializeConfig() instead, which only works because
+	//    lambda events never run in parallel in the same process. In other
+	//    environments, race conditions may occur because the config is a
+	//    global variable here.
+	// So please check with your peers before changing the logic around
+	// here.
 	conf := os.Getenv("ECONOMIC_CONFIG_FILE")
 	if conf == "" {
 		agt := os.Getenv("ECONOMIC_AGREEMENT_GRANT_TOKEN")
