@@ -8,7 +8,8 @@ import (
 
 func TestWhoami(t *testing.T) {
 	resp := map[string]any{}
-	err := callRestAPI("/self", http.MethodGet, nil, &resp)
+	client := getTestClient()
+	err := client.callRestAPI("/self", http.MethodGet, nil, &resp)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -37,9 +38,10 @@ func TestFindCustomerByName(t *testing.T) {
 		CorporateIdentificationNumber: "28971958",
 	}
 
-	c.Create()
-	defer c.Delete()
-	found := FindCustomerByOrgNumber("28971958")
+	client := getTestClient()
+	client.CreateCustomer(&c)
+	defer client.DeleteCustomer(&c)
+	found := client.FindCustomerByOrgNumber("28971958")
 	if len(found) == 0 {
 		t.Fatalf("Expected to find customer")
 	}
@@ -50,7 +52,7 @@ func TestFindCustomerByName(t *testing.T) {
 
 func TestGetOrCreateCustomer(t *testing.T) {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	c := Customer{
+	c := &Customer{
 		Address: "Testvej 1",
 		City:    "Testby",
 		Name:    "Abe Testesen",
@@ -72,11 +74,12 @@ func TestGetOrCreateCustomer(t *testing.T) {
 		Name:  "Abe Testesen",
 		Email: "jungle@abe.com",
 	}
-	_, err := GetOrCreateCustomer(c, contact)
+	client := getTestClient()
+	err := client.GetOrCreateCustomer(c, contact)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	found := FindCustomerByOrgNumber("66666666")
+	found := client.FindCustomerByOrgNumber("66666666")
 	if len(found) != 1 {
 		t.Fatalf("Expected to find customer only one customer")
 	}
@@ -84,12 +87,12 @@ func TestGetOrCreateCustomer(t *testing.T) {
 		Name:  "Employee 2 Testesen",
 		Email: "employee2@abe.com",
 	}
-	got, err := GetOrCreateCustomer(c, contact2)
-	defer got.Delete()
+	err = client.GetOrCreateCustomer(c, contact2)
+	defer client.DeleteCustomer(c)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	found = FindCustomerByOrgNumber("66666666")
+	found = client.FindCustomerByOrgNumber("66666666")
 	if len(found) != 1 {
 		t.Fatalf("Expected to find customer only one customer")
 	}

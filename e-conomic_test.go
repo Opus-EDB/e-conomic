@@ -6,7 +6,7 @@ import (
 )
 
 func TestEconomicCustomer(t *testing.T) {
-	c := Customer{
+	c := &Customer{
 		Address: "Testvej 1",
 		City:    "Testby",
 		Name:    "Test Testesen",
@@ -22,13 +22,12 @@ func TestEconomicCustomer(t *testing.T) {
 			CustomerGroupNumber: 1,
 		},
 	}
-	err := c.Create()
+	client := getTestClient()
+	c, err := client.CreateCustomer(c)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	otherC := Customer{}
-	otherC.SetID(c.ID())
-	err = otherC.Get()
+	otherC, err := client.GetCustomerByNumber(c.ID())
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -44,14 +43,15 @@ func TestEconomicCustomer(t *testing.T) {
 	if c.Zip != otherC.Zip {
 		t.Fatalf("Expected %s, got %s", c.Zip, otherC.Zip)
 	}
-	err = c.Delete()
+	err = client.DeleteCustomer(c)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
 }
 
 func TestPaymentTerms(t *testing.T) {
-	terms, err := GetPaymentTerms()
+	client := getTestClient()
+	terms, err := client.GetPaymentTerms()
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}

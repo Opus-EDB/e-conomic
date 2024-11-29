@@ -3,6 +3,7 @@ package economic
 import "testing"
 
 func TestUpdateOrCreateContact(t *testing.T) {
+	client := getTestClient()
 	c := Customer{
 		Address: "Testvej 1",
 		City:    "Testby",
@@ -21,18 +22,21 @@ func TestUpdateOrCreateContact(t *testing.T) {
 		},
 		CorporateIdentificationNumber: "66666667",
 	}
-	c.Create()
-	defer c.Delete()
+	_, err := client.CreateCustomer(&c)
+	if err != nil {
+		t.Fatalf("Error: %s", err)
+	}
+	defer client.DeleteCustomer(&c)
 	contact := CustomerContact{
 		Name:  "Abe Testesen",
 		Email: "wrongemail@abe.com",
 		Phone: "12345678",
 	}
-	err := UpdateOrCreateContact(c, contact)
+	err = client.UpdateOrCreateContact(c, contact)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	contacts, err := getCustomerContacts(c.CustomerNumber)
+	contacts, err := client.getCustomerContacts(c.CustomerNumber)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -49,11 +53,11 @@ func TestUpdateOrCreateContact(t *testing.T) {
 		t.Fatalf("Expected %s, got %s", contact.Name, contacts[0].Name)
 	}
 	contact.Email = "correctEmail@abe.com"
-	err = UpdateOrCreateContact(c, contact)
+	err = client.UpdateOrCreateContact(c, contact)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	contacts, err = getCustomerContacts(c.CustomerNumber)
+	contacts, err = client.getCustomerContacts(c.CustomerNumber)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}

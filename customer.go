@@ -6,86 +6,97 @@ import (
 	"net/http"
 )
 
-func (c *Customer) Get() error {
-	return callRestAPI(fmt.Sprintf("customers/%d", c.CustomerNumber), http.MethodGet, nil, c)
+func (client *Client) GetCustomerByNumber(number int) (*Customer, error) {
+	var customer Customer
+	err := client.callRestAPI(fmt.Sprintf("customers/%d", number), http.MethodGet, nil, &customer)
+	return &customer, err
 }
 
-func (c *Customer) Create() error {
-	return callRestAPI("customers", http.MethodPost, c, c)
+/*
+func (client *Client) GetCustomer(customer *Customer) error {
+	return client.callRestAPI(fmt.Sprintf("customers/%d", customer.CustomerNumber), http.MethodGet, nil, customer)
+}
+*/
+
+func (client *Client) CreateCustomer(customer *Customer) (*Customer, error) {
+	r := Customer{}
+	err := client.callRestAPI("customers", http.MethodPost, customer, &r)
+	return &r, err
 }
 
-func (c *Customer) Update() error {
-	return callRestAPI(fmt.Sprintf("customers/%d", c.CustomerNumber), http.MethodPut, c, nil)
+func (client *Client) UpdateCustomer(customer *Customer) error {
+	return client.callRestAPI(fmt.Sprintf("customers/%d", customer.CustomerNumber), http.MethodPut, customer, nil)
 }
 
-func (c *Customer) Delete() error {
-	err := callRestAPI(fmt.Sprintf("customers/%d", c.CustomerNumber), http.MethodDelete, nil, nil)
+func (client *Client) DeleteCustomer(customer *Customer) error {
+	err := client.callRestAPI(fmt.Sprintf("customers/%d", customer.CustomerNumber), http.MethodDelete, nil, nil)
 	return err
 }
 
-// GetCustomer gets a customer from economic by customer number. If the customer does not exist, it creates a new customer in economic using the provided.
-func GetOrCreateCustomer(customer Customer, contact CustomerContact) (Customer, error) {
+// GetCustomer gets a customer from economic by customer number. If the
+// customer does not exist, it creates a new customer in economic using the
+// provided.  `customer` is read and modified in-place.
+func (client *Client) GetOrCreateCustomer(customer *Customer, contact CustomerContact) error {
 	if customer.CorporateIdentificationNumber == "" && customer.VatNumber == "" {
-		return customer, fmt.Errorf("no corporate identification number or vat number provided")
+		return fmt.Errorf("no corporate identification number or vat number provided")
 	} else if customer.CorporateIdentificationNumber != "" {
 		customer.VatNumber = customer.CorporateIdentificationNumber
 	}
-	customers := FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
+	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
 	if len(customers) == 0 {
 		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		err := customer.Create()
-		if err != nil {
-			log.Printf("Error: %s", err)
-			return customer, err
-		}
-		customers = append(customers, customer)
-	}
-	if len(customers) > 1 {
-		return customer, fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
-	}
-	customer = customers[0]
-	contacts, err := getCustomerContacts(customer.CustomerNumber)
-	if err != nil {
-		log.Printf("Error: %s", err)
-		return customer, err
-	}
-	// Check if contact already exists
-	for _, c := range contacts {
-		if c.Email == contact.Email {
-			return customer, nil
-		}
-	}
-	_, err = createCustomerContact(customer.CustomerNumber, contact)
-	if err != nil {
-		log.Printf("Error: %s", err)
-	}
-	return customer, err
-}
-
-// Updates or creates a company based on the corporate identification number.
-func UpdateOrCreateCustomer(customer Customer) error {
-	customers := FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
-	if len(customers) == 0 {
-		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		err := customer.Create()
+		c, err := client.CreateCustomer(customer)
 		if err != nil {
 			log.Printf("Error: %s", err)
 			return err
 		}
-		customers = append(customers, customer)
+		customers = append(customers, *c)
+	}
+	if len(customers) > 1 {
+		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
+	}
+	contacts, err := client.getCustomerContacts(customers[0].CustomerNumber)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		return err
+	}
+	// Check if contact already exists
+	for _, c := range contacts {
+		if c.Email == contact.Email {
+			return nil
+		}
+	}
+	_, err = client.createCustomerContact(customers[0].CustomerNumber, contact)
+	if err != nil {
+		log.Printf("Error: %s", err)
+	}
+	return err
+}
+
+// Updates or creates a company based on the corporate identification number.
+func (client *Client) UpdateOrCreateCustomer(customer Customer) error {
+	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
+	if len(customers) == 0 {
+		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
+		c, err := client.CreateCustomer(&customer)
+		if err != nil {
+			log.Printf("Error: %s", err)
+			return err
+		}
+		customers = append(customers, *c)
 	}
 	if len(customers) > 1 {
 		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
 	}
 	customer.CustomerNumber = customers[0].CustomerNumber
-	return customer.Update()
+	return client.UpdateCustomer(&customer)
 }
 
-func FindCustomerByOrgNumber(org string) []Customer {
+func (client *Client) FindCustomerByOrgNumber(org string) []Customer {
 	filter := &Filter{}
 	filter.AndCondition("corporateIdentificationNumber", FilterOperatorEquals, org)
 	resp := CollectionReponse[Customer]{}
-	err := callRestAPI("customers?filter="+filter.String(), http.MethodGet, nil, &resp)
+	err := client.callRestAPI("customers?filter="+filter.String(), http.MethodGet, nil, &resp)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 func TestCreateOrderDraft(t *testing.T) {
-	c := Customer{
+	c := &Customer{
 		Address: "Testvej 1",
 		City:    "Testby",
 		Name:    "Abe Testesen",
@@ -28,11 +28,12 @@ func TestCreateOrderDraft(t *testing.T) {
 		Name:  "Abe Testesen",
 		Email: "jungle@abe.com",
 	}
-	c, err := GetOrCreateCustomer(c, contact)
+	client := getTestClient()
+	err := client.GetOrCreateCustomer(c, contact)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	defer c.Delete()
+	defer client.DeleteCustomer(c)
 	order := &Order{
 		Date:     "2023-10-01",
 		Currency: "DKK",
@@ -52,7 +53,7 @@ func TestCreateOrderDraft(t *testing.T) {
 		},
 		Lines: []OrderLine{},
 	}
-	_, err = CreateInvoice(order)
+	_, err = client.CreateInvoice(order)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -60,7 +61,8 @@ func TestCreateOrderDraft(t *testing.T) {
 
 func TestGetLayouts(t *testing.T) {
 	resp := map[string]any{}
-	err := callRestAPI("layouts", http.MethodGet, nil, &resp)
+	client := getTestClient()
+	err := client.callRestAPI("layouts", http.MethodGet, nil, &resp)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -69,7 +71,8 @@ func TestGetLayouts(t *testing.T) {
 
 func TestGetDrafts(t *testing.T) {
 	resp := map[string]any{}
-	err := callRestAPI("orders/drafts", http.MethodGet, nil, &resp)
+	client := getTestClient()
+	err := client.callRestAPI("orders/drafts", http.MethodGet, nil, &resp)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -78,7 +81,8 @@ func TestGetDrafts(t *testing.T) {
 
 func TestGetProducts(t *testing.T) {
 	resp := map[string]any{}
-	err := callRestAPI("products", http.MethodGet, nil, &resp)
+	client := getTestClient()
+	err := client.callRestAPI("products", http.MethodGet, nil, &resp)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -86,7 +90,7 @@ func TestGetProducts(t *testing.T) {
 }
 
 func TestGetInvoice(t *testing.T) {
-	c := Customer{
+	c := &Customer{
 		Address: "Testvej 1",
 		City:    "Testby",
 		Name:    "Abe Testesen",
@@ -108,7 +112,8 @@ func TestGetInvoice(t *testing.T) {
 		Name:  "Abe Testesen",
 		Email: "jungle@abe.com",
 	}
-	c, err := GetOrCreateCustomer(c, contact)
+	client := getTestClient()
+	err := client.GetOrCreateCustomer(c, contact)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -141,22 +146,22 @@ func TestGetInvoice(t *testing.T) {
 				UnitNetPrice: 300,
 			},
 		}}
-	invoice, err := CreateInvoice(order)
+	invoice, err := client.CreateInvoice(order)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	found, err := GetInvoiceByRef(ref)
+	found, err := client.GetInvoiceByRef(ref)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
 	if found.DraftInvoiceNumber != invoice.DraftInvoiceNumber {
 		t.Fatalf("Expected invoice number `%d`, got `%d`", invoice.DraftInvoiceNumber, found.DraftInvoiceNumber)
 	}
-	invoice, err = BookInvoice(invoice.DraftInvoiceNumber)
+	invoice, err = client.BookInvoice(invoice.DraftInvoiceNumber)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	found, err = GetInvoiceByRef(ref)
+	found, err = client.GetInvoiceByRef(ref)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -166,7 +171,8 @@ func TestGetInvoice(t *testing.T) {
 }
 
 func TestGetBooked(t *testing.T) {
-	invoices, err := GetBookedInvoices()
+	client := getTestClient()
+	invoices, err := client.GetBookedInvoices()
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}

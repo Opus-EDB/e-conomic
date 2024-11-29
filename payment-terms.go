@@ -4,9 +4,9 @@ import (
 	"net/http"
 )
 
-func GetPaymentTerms() ([]PaymentTerm, error) {
+func (client *Client) GetPaymentTerms() ([]PaymentTerm, error) {
 	var paymentTerms CollectionReponse[PaymentTerm]
-	err := callRestAPI("payment-terms", http.MethodGet, nil, &paymentTerms)
+	err := client.callRestAPI("payment-terms", http.MethodGet, nil, &paymentTerms)
 	if err != nil {
 		return paymentTerms.Collection, err
 	}

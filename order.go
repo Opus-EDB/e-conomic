@@ -7,8 +7,8 @@ import (
 	"net/url"
 )
 
-func CreateInvoice(order *Order) (invoice Invoice, err error) {
-	err = callRestAPI("invoices/drafts", http.MethodPost, order, &invoice)
+func (client *Client) CreateInvoice(order *Order) (invoice Invoice, err error) {
+	err = client.callRestAPI("invoices/drafts", http.MethodPost, order, &invoice)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 	}
@@ -16,24 +16,24 @@ func CreateInvoice(order *Order) (invoice Invoice, err error) {
 }
 
 // Deletes a draft invoice, i.e. not booked
-func DeleteInvoice(invoiceNo int) (err error) {
-	err = callRestAPI(fmt.Sprintf("invoices/drafts/%d", invoiceNo), http.MethodDelete, nil, nil)
+func (client *Client) DeleteInvoice(invoiceNo int) (err error) {
+	err = client.callRestAPI(fmt.Sprintf("invoices/drafts/%d", invoiceNo), http.MethodDelete, nil, nil)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 	}
 	return
 }
 
-func GetDraftInvoice(invoiceNo int) (invoice Invoice, err error) {
-	err = callRestAPI(fmt.Sprintf("invoices/drafts/%d", invoiceNo), http.MethodGet, nil, &invoice)
+func (client *Client) GetDraftInvoice(invoiceNo int) (invoice Invoice, err error) {
+	err = client.callRestAPI(fmt.Sprintf("invoices/drafts/%d", invoiceNo), http.MethodGet, nil, &invoice)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 	}
 	return
 }
 
-func GetBookedInvoice(invoiceNo int) (invoice Invoice, err error) {
-	err = callRestAPI(fmt.Sprintf("invoices/booked/%d", invoiceNo), http.MethodGet, nil, &invoice)
+func (client *Client) GetBookedInvoice(invoiceNo int) (invoice Invoice, err error) {
+	err = client.callRestAPI(fmt.Sprintf("invoices/booked/%d", invoiceNo), http.MethodGet, nil, &invoice)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 	}
@@ -43,12 +43,12 @@ func GetBookedInvoice(invoiceNo int) (invoice Invoice, err error) {
 // Finds an invoice by reference. The reference is usually your internal order number.
 // if the returned invoice has a booked invoice number not equal to zero, it is booked
 // if the returned invoice has a draft invoice number not equal to zero, it is a draft
-func GetInvoiceByRef(ref string) (invoice Invoice, err error) {
-	invoice, err = GetDraftInvoiceByRef(ref)
+func (client *Client) GetInvoiceByRef(ref string) (invoice Invoice, err error) {
+	invoice, err = client.GetDraftInvoiceByRef(ref)
 	if err == nil {
 		return
 	}
-	invoice, err = GetBookedInvoiceByRef(ref)
+	invoice, err = client.GetBookedInvoiceByRef(ref)
 	if err == nil {
 		return
 	}
@@ -57,12 +57,12 @@ func GetInvoiceByRef(ref string) (invoice Invoice, err error) {
 	return
 }
 
-func GetDraftInvoiceByRef(ref string) (invoice Invoice, err error) {
+func (client *Client) GetDraftInvoiceByRef(ref string) (invoice Invoice, err error) {
 	filter := &Filter{}
 	ref = url.QueryEscape(ref)
 	filter.AndCondition("references.other", FilterOperatorEquals, ref)
 	results := CollectionReponse[Invoice]{}
-	err = callRestAPI(fmt.Sprintf("invoices/drafts?filter="+filter.filterStr), http.MethodGet, nil, &results)
+	err = client.callRestAPI(fmt.Sprintf("invoices/drafts?filter="+filter.filterStr), http.MethodGet, nil, &results)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 		return
@@ -76,9 +76,9 @@ func GetDraftInvoiceByRef(ref string) (invoice Invoice, err error) {
 	return
 }
 
-func BookInvoice(invoiceNo int) (invoice Invoice, err error) {
+func (client *Client) BookInvoice(invoiceNo int) (invoice Invoice, err error) {
 	body := map[string]map[string]int{"draftInvoice": {"draftInvoiceNumber": invoiceNo}}
-	err = callRestAPI("invoices/booked", http.MethodPost, body, &invoice)
+	err = client.callRestAPI("invoices/booked", http.MethodPost, body, &invoice)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 	}
@@ -86,12 +86,12 @@ func BookInvoice(invoiceNo int) (invoice Invoice, err error) {
 }
 
 // Fails if no unique match is found on 'other references'
-func GetBookedInvoiceByRef(ref string) (invoice Invoice, err error) {
+func (client *Client) GetBookedInvoiceByRef(ref string) (invoice Invoice, err error) {
 	filter := &Filter{}
 	ref = url.QueryEscape(ref)
 	filter.AndCondition("references.other", FilterOperatorEquals, ref)
 	results := CollectionReponse[Invoice]{}
-	err = callRestAPI(fmt.Sprintf("invoices/booked?filter="+filter.filterStr), http.MethodGet, nil, &results)
+	err = client.callRestAPI(fmt.Sprintf("invoices/booked?filter="+filter.filterStr), http.MethodGet, nil, &results)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 		return
@@ -105,9 +105,9 @@ func GetBookedInvoiceByRef(ref string) (invoice Invoice, err error) {
 	return
 }
 
-func GetBookedInvoices() (invoices []Invoice, err error) {
+func (client *Client) GetBookedInvoices() (invoices []Invoice, err error) {
 	results := CollectionReponse[Invoice]{}
-	err = callRestAPI("invoices/booked", http.MethodGet, nil, &results)
+	err = client.callRestAPI("invoices/booked", http.MethodGet, nil, &results)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 		return
@@ -118,8 +118,8 @@ func GetBookedInvoices() (invoices []Invoice, err error) {
 
 // Creates a credit note based on a booked invoice with a unique reference (usually your internal order number)
 // The credit note will have negative amounts and can be booked similarly to a regular invoice
-func CreditInvoiceByRef(ref string) (creditNote Invoice, err error) {
-	invoiceToCredit, err := GetBookedInvoiceByRef(ref)
+func (client *Client) CreditInvoiceByRef(ref string) (creditNote Invoice, err error) {
+	invoiceToCredit, err := client.GetBookedInvoiceByRef(ref)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 		return
@@ -148,7 +148,7 @@ func CreditInvoiceByRef(ref string) (creditNote Invoice, err error) {
 		NetAmount:   creditNetAmount,
 		VatAmount:   creditVatAmount,
 	}
-	creditNote, err = CreateInvoice(order)
+	creditNote, err = client.CreateInvoice(order)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 	}

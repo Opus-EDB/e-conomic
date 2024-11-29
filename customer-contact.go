@@ -6,9 +6,9 @@ import (
 	"net/http"
 )
 
-func getCustomerContacts(customerNumber int) ([]CustomerContact, error) {
+func (client *Client) getCustomerContacts(customerNumber int) ([]CustomerContact, error) {
 	cc := CollectionReponse[CustomerContact]{}
-	err := callRestAPI(fmt.Sprintf("customers/%d/contacts", customerNumber), http.MethodGet, nil, &cc)
+	err := client.callRestAPI(fmt.Sprintf("customers/%d/contacts", customerNumber), http.MethodGet, nil, &cc)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
@@ -23,22 +23,23 @@ func (c *Customer) SetID(id int) {
 	c.CustomerNumber = id
 }
 
-func UpdateOrCreateContact(customer Customer, contact CustomerContact) error {
-	customers := FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
+func (client *Client) UpdateOrCreateContact(customer Customer, contact CustomerContact) error {
+	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
 	if len(customers) == 0 {
 		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		err := customer.Create()
+		c := &customer
+		c, err := client.CreateCustomer(c)
 		if err != nil {
 			log.Printf("Error: %s", err)
 			return err
 		}
-		customers = append(customers, customer)
+		customers = append(customers, *c)
 	}
 	if len(customers) > 1 {
 		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
 	}
 	customer = customers[0]
-	contacts, err := getCustomerContacts(customer.CustomerNumber)
+	contacts, err := client.getCustomerContacts(customer.CustomerNumber)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		return err
@@ -49,23 +50,23 @@ func UpdateOrCreateContact(customer Customer, contact CustomerContact) error {
 			contact.CustomerContactNumber = c.CustomerContactNumber
 			customerId := customer.CustomerNumber
 			path := fmt.Sprintf("customers/%d/contacts/%d", customerId, contact.CustomerContactNumber)
-			err := callRestAPI(path, http.MethodPut, contact, &contact)
+			err := client.callRestAPI(path, http.MethodPut, contact, &contact)
 			if err != nil {
 				log.Printf("Error: %s", err)
 			}
 			return nil
 		}
 	}
-	_, err = createCustomerContact(customer.CustomerNumber, contact)
+	_, err = client.createCustomerContact(customer.CustomerNumber, contact)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
 	return err
 }
 
-func createCustomerContact(customerNumber int, contact CustomerContact) (CustomerContact, error) {
+func (client *Client) createCustomerContact(customerNumber int, contact CustomerContact) (CustomerContact, error) {
 	var createdContact CustomerContact
-	err := callRestAPI(fmt.Sprintf("customers/%d/contacts", customerNumber), http.MethodPost, contact, &createdContact)
+	err := client.callRestAPI(fmt.Sprintf("customers/%d/contacts", customerNumber), http.MethodPost, contact, &createdContact)
 	if err != nil {
 		return createdContact, err
 	}

@@ -18,12 +18,13 @@ func TestCreateJournal(t *testing.T) {
 		ContraVatCode:       "U25",
 		VatCode:             "U25",
 	}
-	err := j.CreateEntry()
+	client := getTestClient()
+	err := j.CreateEntry(client)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	defer j.Delete()
-	found, err := GetCashPaymentById(j.VoucherNumber)
+	defer j.Delete(client)
+	found, err := client.GetCashPaymentById(j.VoucherNumber)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -48,15 +49,16 @@ func TestGetBookedCashPaymentById(t *testing.T) {
 		ContraVatCode:       "U25",
 		VatCode:             "U25",
 	}
-	err := j.CreateEntry()
+	client := getTestClient()
+	err := j.CreateEntry(client)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	err = BookAllEntries(6)
+	err = client.BookAllEntries(6)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	found, err := GetBookedCashPaymentById(j.VoucherNumber)
+	found, err := client.GetBookedCashPaymentById(j.VoucherNumber)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -67,7 +69,8 @@ func TestGetBookedCashPaymentById(t *testing.T) {
 
 func TestCreditBookedCashPayment(t *testing.T) {
 	paymentId := 50160
-	je, err := GetCashPaymentById(paymentId)
+	client := getTestClient()
+	je, err := client.GetCashPaymentById(paymentId)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -84,7 +87,7 @@ func TestCreditBookedCashPayment(t *testing.T) {
 		VatCode:             "U25",
 		IsCredit:            true,
 	}
-	err = j.CreateEntry()
+	err = j.CreateEntry(client)
 
 	if err != nil {
 		t.Fatalf("Error: %s", err)
