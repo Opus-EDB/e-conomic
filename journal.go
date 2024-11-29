@@ -36,26 +36,6 @@ type JournalEntry struct {
 // Create a draft of a cash payment.
 // If the entry is created successfully, the EntryNumber field will be set.
 // Set IsCredit to true if the amount should be negative.
-func (j *JournalEntry) CreateEntry(client *Client) error {
-	resp := map[string]any{}
-	err := client.callAPI("/journalsapi/v6.0.0/draft-entries/", http.MethodPost, url.Values{}, j, &resp)
-	if err == nil {
-		entryNumber := resp["entryNumber"]
-		log.Printf("entryNumber: %#v", entryNumber)
-		if entryNumber != nil {
-			j.EntryNumber = int(entryNumber.(float64))
-		}
-	}
-	return err
-}
-
-func (j *JournalEntry) Delete(client *Client) error {
-	return client.callAPI(fmt.Sprintf("/journalsapi/v6.0.0/draft-entries/%d", j.EntryNumber), http.MethodDelete, url.Values{}, nil, nil)
-}
-
-// Create a draft of a cash payment.
-// If the entry is created successfully, the EntryNumber field will be set.
-// Set IsCredit to true if the amount should be negative.
 func (client *Client) CreateJournalEntry(j *JournalEntry) error {
 	resp := map[string]any{}
 	err := client.callAPI("/journalsapi/v6.0.0/draft-entries/", http.MethodPost, url.Values{}, j, &resp)
