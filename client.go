@@ -64,6 +64,9 @@ func (client *Client) callRestAPI(endpoint, method string, request, response any
 }
 
 func (client *Client) callAPI(endpoint string, method string, params url.Values, body interface{}, response interface{}) error {
+	if params == nil {
+		params = url.Values{}
+	}
 	client.assertClientIsConfigured()
 	grant := client.AgreementGrant
 	secret := client.AppSecretToken
@@ -72,16 +75,17 @@ func (client *Client) callAPI(endpoint string, method string, params url.Values,
 	}
 	req := &http.Request{
 		Method: method,
-		URL: &url.URL{Path: endpoint, RawQuery: params.Encode(),
-			Scheme: "https", Host: "apis.e-conomic.com"},
+		URL: &url.URL{
+			Path:     endpoint,
+			RawQuery: params.Encode(),
+			Scheme:   "https",
+			Host:     "apis.e-conomic.com",
+		},
 		Header: make(http.Header),
 	}
 	req.Header.Set("X-AppSecretToken", secret)
 	req.Header.Set("X-AgreementGrantToken", grant)
 	req.Header.Set("Accept", "application/json")
-	if params != nil {
-		req.URL.RawQuery = params.Encode()
-	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 		jsonBody, err := json.Marshal(body)

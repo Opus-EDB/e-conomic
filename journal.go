@@ -38,7 +38,7 @@ type JournalEntry struct {
 // Set IsCredit to true if the amount should be negative.
 func (client *Client) CreateJournalEntry(j *JournalEntry) error {
 	resp := map[string]any{}
-	err := client.callAPI("/journalsapi/v6.0.0/draft-entries/", http.MethodPost, url.Values{}, j, &resp)
+	err := client.callAPI("/journalsapi/v6.0.0/draft-entries/", http.MethodPost, nil, j, &resp)
 	if err == nil {
 		entryNumber := resp["entryNumber"]
 		log.Printf("entryNumber: %#v", entryNumber)
@@ -50,7 +50,7 @@ func (client *Client) CreateJournalEntry(j *JournalEntry) error {
 }
 
 func (client *Client) DeleteJournalEntry(j *JournalEntry) error {
-	return client.callAPI(fmt.Sprintf("/journalsapi/v6.0.0/draft-entries/%d", j.EntryNumber), http.MethodDelete, url.Values{}, nil, nil)
+	return client.callAPI(fmt.Sprintf("/journalsapi/v6.0.0/draft-entries/%d", j.EntryNumber), http.MethodDelete, nil, nil, nil)
 }
 
 func (client *Client) GetDraftEntriesCount() (int, error) {
@@ -104,5 +104,5 @@ func (client *Client) GetBookedCashPaymentById(id int) (JournalEntry, error) {
 }
 
 func (client *Client) BookAllEntries(journalNumber int) error {
-	return client.callAPI(fmt.Sprintf("/journalsapi/v6.0.0/journals/%d/book", journalNumber), http.MethodPost, url.Values{}, nil, nil)
+	return client.callAPI(fmt.Sprintf("/journalsapi/v6.0.0/journals/%d/book", journalNumber), http.MethodPost, nil, nil, nil)
 }
