@@ -38,7 +38,7 @@ type JournalEntry struct {
 // Set IsCredit to true if the amount should be negative.
 func (client *Client) CreateJournalEntry(j *JournalEntry) error {
 	resp := map[string]any{}
-	err := client.callAPI("/journalsapi/v6.0.0/draft-entries/", http.MethodPost, nil, j, &resp)
+	err := client.callAPI("/journalsapi/v6.0.0/draft-entries", http.MethodPost, nil, j, &resp)
 	if err == nil {
 		entryNumber := resp["entryNumber"]
 		log.Printf("entryNumber: %#v", entryNumber)
