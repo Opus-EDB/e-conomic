@@ -48,18 +48,3 @@ type Pagination struct {
 	ResultsWithoutFilter int    `json:"resultsWithoutFilter"`
 	SkipPages            int    `json:"skipPages"`
 }
-
-type ErrorResp struct {
-	Errors []struct {
-		Property  string `json:"property"`
-		Message   string `json:"message"`
-		ErrorCode string `json:"errorCode"`
-	} `json:"errors"`
-	Type         string `json:"type"`
-	Title        string `json:"title"`
-	Status       int    `json:"status"`
-	Instance     string `json:"instance"`
-	TraceID      string `json:"traceId"`
-	TraceTimeUtc string `json:"traceTimeUtc"`
-	ErrorCode    string `json:"errorCode"`
-}

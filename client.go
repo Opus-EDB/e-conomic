@@ -103,16 +103,11 @@ func (client *Client) callAPI(endpoint string, method string, params url.Values,
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		errResp := ErrorResp{}
-		err = json.NewDecoder(resp.Body).Decode(&errResp)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("error in calling e-conomic (%s %s) err: %s", endpoint, method, err)
+			return fmt.Errorf("failed to read response body (internal error?) when calling e-conomic (%s %s => %d)", method, endpoint, resp.StatusCode)
 		}
-		errs := errResp.Title + " "
-		for _, e := range errResp.Errors {
-			errs += fmt.Sprintf("%s: %s\n", e.Property, e.Message)
-		}
-		return fmt.Errorf("error in calling e-conomic (%s %s) %s", endpoint, method, errs)
+		return fmt.Errorf("error in calling e-conomic (%s %s => %d) %s", method, endpoint, resp.StatusCode, string(body))
 	}
 	if response != nil {
 		err = json.NewDecoder(resp.Body).Decode(response)
