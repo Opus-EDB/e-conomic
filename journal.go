@@ -8,15 +8,6 @@ import (
 	"net/url"
 )
 
-// {
-//   "entryTypeNumber": 0,
-//   "voucherNumber": 0,
-//   "journalNumber": 0,
-//   "date": "2019-08-24T14:15:22Z",
-//   "amount": 0,
-//   "currency": "string"
-// }
-
 type JournalEntry struct {
 	EntryTypeNumber     int         `json:"entryTypeNumber,omitempty"`
 	VoucherNumber       int         `json:"voucherNumber"`
