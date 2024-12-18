@@ -25,7 +25,9 @@ func (client *Client) CreateDimensionValueIfItDoesNotExist(number, key int, name
 	err := client.callAPI(fmt.Sprintf(DIMENSIONAPI_BASE+"/values/%d/%d", number, key), http.MethodGet, nil, nil, nil)
 	if err != nil {
 		// XXX TODO nicer 404 handling
-		if !strings.Contains(err.Error(), "not found") {
+		if strings.Contains(err.Error(), "not found") {
+			return false, nil
+		} else {
 			return false, err
 		}
 	}
