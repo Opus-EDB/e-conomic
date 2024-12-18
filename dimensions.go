@@ -23,11 +23,11 @@ func (client *Client) CreateDimensionValue(number, key int, name string) error {
 // Name is not changed/updated if the value already exists.
 func (client *Client) CreateDimensionValueIfItDoesNotExist(number, key int, name string) (bool, error) {
 	err := client.callAPI(fmt.Sprintf(DIMENSIONAPI_BASE+"/values/%d/%d", number, key), http.MethodGet, nil, nil, nil)
-	if err != nil {
+	if err == nil {
+		return false, nil
+	} else if err != nil {
 		// XXX TODO nicer 404 handling
-		if strings.Contains(err.Error(), "not found") {
-			return false, nil
-		} else {
+		if !strings.Contains(err.Error(), "not found") {
 			return false, err
 		}
 	}
