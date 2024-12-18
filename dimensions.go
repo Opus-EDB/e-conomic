@@ -31,3 +31,13 @@ func (client *Client) CreateDimensionValueIfItDoesNotExist(number, key int, name
 	}
 	return true, client.CreateDimensionValue(number, key, name)
 }
+
+func (client *Client) AddDimensionValueToDraftEntry(dimensionNumber, dimensionKey, journalNumber, entryNumber int) error {
+	body := map[string]any{
+		"dimensionNumber": dimensionNumber,
+		"dimensionKey":    dimensionKey,
+		"journalNumber":   journalNumber,
+		"entryNumber":     entryNumber,
+	}
+	return client.callAPI(fmt.Sprintf(DIMENSIONAPI_BASE+"/dimension-data/draft-entries"), http.MethodPost, nil, body, nil)
+}
