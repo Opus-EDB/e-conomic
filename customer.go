@@ -55,6 +55,7 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact CustomerCo
 	if len(customers) > 1 {
 		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
 	}
+	*customer = customers[0]
 	contacts, err := client.getCustomerContacts(customers[0].CustomerNumber)
 	if err != nil {
 		log.Printf("Error: %s", err)
