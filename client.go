@@ -51,7 +51,7 @@ func (client *Client) callRestAPI(endpoint, method string, request, response any
 	defer res.Body.Close()
 	body := new(bytes.Buffer)
 	body.ReadFrom(res.Body)
-	log.Printf("status code from e-conomic: %d", res.StatusCode)
+	log.Printf("e-conomic/REST %s %s => %d", method, endpoint, res.StatusCode)
 	if res.StatusCode >= 400 {
 		log.Printf("error in calling e-conomic (%s %s) err: %s", url, method, body.String())
 		return fmt.Errorf("error in calling e-conomic (%s %s) err: %s", url, method, body.String())
@@ -96,22 +96,22 @@ func (client *Client) callAPI(endpoint string, method string, params url.Values,
 		req.Body = io.NopCloser(bytes.NewReader(jsonBody))
 	}
 	httpClient := http.DefaultClient
-	resp, err := httpClient.Do(req)
+	res, err := httpClient.Do(req)
 	if err != nil {
 		log.Printf("error in calling e-conomic (%s %s) err: %s", endpoint, method, err)
 		return err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		body, err := io.ReadAll(resp.Body)
+	defer res.Body.Close()
+	if res.StatusCode >= 400 {
+		body, err := io.ReadAll(res.Body)
 		if err != nil {
-			return fmt.Errorf("failed to read response body (internal error?) when calling e-conomic (%s %s => %d)", method, endpoint, resp.StatusCode)
+			return fmt.Errorf("failed to read response body (internal error?) when calling e-conomic (%s %s => %d)", method, endpoint, res.StatusCode)
 		}
-		return fmt.Errorf("error in calling e-conomic (%s %s => %d) %s", method, endpoint, resp.StatusCode, string(body))
+		return fmt.Errorf("error in calling e-conomic (%s %s => %d) %s", method, endpoint, res.StatusCode, string(body))
 	}
 	if response != nil {
-		err = json.NewDecoder(resp.Body).Decode(response)
+		err = json.NewDecoder(res.Body).Decode(response)
 	}
-	log.Printf("status code from e-conomic: %d", resp.StatusCode)
+	log.Printf("e-conomic/OpenAPI %s %s => %d", method, endpoint, res.StatusCode)
 	return err
 }
