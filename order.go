@@ -40,7 +40,7 @@ func (client *Client) GetBookedInvoice(invoiceNo int) (invoice Invoice, err erro
 	return
 }
 
-var invoiceClasses = []string{"drafts", "booked", "paid", "unpaid", "overdue", "not-due", "sent"}
+var invoiceClasses = []string{"drafts", "booked", "paid", "unpaid", "overdue", "not-due"}
 
 func IsValidInvoiceClass(class string) bool {
 	for _, c := range invoiceClasses {
