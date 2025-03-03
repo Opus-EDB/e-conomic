@@ -40,6 +40,56 @@ func (client *Client) GetBookedInvoice(invoiceNo int) (invoice Invoice, err erro
 	return
 }
 
+var invoiceClasses = []string{"draft", "booked", "paid", "unpaid", "overdue", "not-due", "sent"}
+
+func IsValidInvoiceClass(class string) bool {
+	for _, c := range invoiceClasses {
+		if c == class {
+			return true
+		}
+	}
+	return false
+}
+
+func ValidateInvoiceClass(class string) error {
+	if !IsValidInvoiceClass(class) {
+		return fmt.Errorf("invalid invoice class '%s'", class)
+	}
+	return nil
+}
+
+// Fails if no unique match is found on 'other references'
+func (client *Client) GetInvoiceByClassAndRef(class, ref string) (invoice Invoice, err error) {
+	err = ValidateInvoiceClass(class)
+	if err != nil {
+		return
+	}
+	filter := &Filter{}
+	ref = url.QueryEscape(ref)
+	filter.AndCondition("references.other", FilterOperatorEquals, ref)
+	results := CollectionReponse[Invoice]{}
+	err = client.callRestAPI(fmt.Sprintf("invoices/"+class+"?filter="+filter.filterStr), http.MethodGet, nil, &results)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
+		return
+	}
+	if len(results.Collection) != 1 {
+		log.Printf("ERROR: %#v", results)
+		err = fmt.Errorf("unable to make unique match with ref %s", ref)
+		return
+	}
+	invoice = results.Collection[0]
+	return
+}
+
+func (client *Client) GetDraftInvoiceByRef(ref string) (invoice Invoice, err error) {
+	return client.GetInvoiceByClassAndRef("draft", ref)
+}
+
+func (client *Client) GetBookedInvoiceByRef(ref string) (invoice Invoice, err error) {
+	return client.GetInvoiceByClassAndRef("booked", ref)
+}
+
 // Finds an invoice by reference. The reference is usually your internal order number.
 // if the returned invoice has a booked invoice number not equal to zero, it is booked
 // if the returned invoice has a draft invoice number not equal to zero, it is a draft
@@ -57,51 +107,12 @@ func (client *Client) GetInvoiceByRef(ref string) (invoice Invoice, err error) {
 	return
 }
 
-func (client *Client) GetDraftInvoiceByRef(ref string) (invoice Invoice, err error) {
-	filter := &Filter{}
-	ref = url.QueryEscape(ref)
-	filter.AndCondition("references.other", FilterOperatorEquals, ref)
-	results := CollectionReponse[Invoice]{}
-	err = client.callRestAPI(fmt.Sprintf("invoices/drafts?filter="+filter.filterStr), http.MethodGet, nil, &results)
-	if err != nil {
-		log.Printf("ERROR: %#v", err)
-		return
-	}
-	if len(results.Collection) != 1 {
-		log.Printf("ERROR: %#v", results)
-		err = fmt.Errorf("unable to make unique match with ref %s", ref)
-		return
-	}
-	invoice = results.Collection[0]
-	return
-}
-
 func (client *Client) BookInvoice(invoiceNo int) (invoice Invoice, err error) {
 	body := map[string]map[string]int{"draftInvoice": {"draftInvoiceNumber": invoiceNo}}
 	err = client.callRestAPI("invoices/booked", http.MethodPost, body, &invoice)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 	}
-	return
-}
-
-// Fails if no unique match is found on 'other references'
-func (client *Client) GetBookedInvoiceByRef(ref string) (invoice Invoice, err error) {
-	filter := &Filter{}
-	ref = url.QueryEscape(ref)
-	filter.AndCondition("references.other", FilterOperatorEquals, ref)
-	results := CollectionReponse[Invoice]{}
-	err = client.callRestAPI(fmt.Sprintf("invoices/booked?filter="+filter.filterStr), http.MethodGet, nil, &results)
-	if err != nil {
-		log.Printf("ERROR: %#v", err)
-		return
-	}
-	if len(results.Collection) != 1 {
-		log.Printf("ERROR: %#v", results)
-		err = fmt.Errorf("unable to make unique match with ref %s", ref)
-		return
-	}
-	invoice = results.Collection[0]
 	return
 }
 
@@ -301,4 +312,15 @@ type DepartmentalDistribution struct {
 	DepartmentalDistributionNumber int    `json:"departmentalDistributionNumber"` //A unique identifier of the departmental distribution."`
 	DistributionType               string `json:"distributionType,omitempty"`     //Type of the distribution"`
 	Self                           string `json:"self,omitempty"`                 //A unique reference to the departmental distribution resource."`
+}
+
+func (client *Client) ClassifyInvoiceByRef(ref string) ([]string, error) {
+	classes := []string{}
+	for _, class := range invoiceClasses {
+		_, err := client.GetInvoiceByClassAndRef(class, ref)
+		if err != nil {
+			classes = append(classes, class)
+		}
+	}
+	return classes, nil
 }

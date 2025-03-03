@@ -97,3 +97,23 @@ func (client *Client) GetBookedCashPaymentById(id int) (JournalEntry, error) {
 func (client *Client) BookAllEntries(journalNumber int) error {
 	return client.callAPI(fmt.Sprintf("/journalsapi/v6.0.0/journals/%d/book", journalNumber), http.MethodPost, nil, nil, nil)
 }
+
+func (client *Client) GetJournalBalanceById(id int) (float64, error) {
+	resp := ItemsReponse[JournalEntry]{}
+	params := url.Values{
+		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
+	}
+	err := client.callAPI("/journalsapi/v6.0.0/draft-entries", http.MethodGet, params, nil, &resp)
+	if err != nil {
+		log.Printf("Error: %s", err)
+	}
+	balance := 0.0
+	for _, item := range resp.Items {
+		a, err := item.Amount.Float64()
+		if err != nil {
+			return 0, nil
+		}
+		balance += a
+	}
+	return balance, nil
+}
