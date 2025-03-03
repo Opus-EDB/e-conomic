@@ -318,7 +318,7 @@ func (client *Client) ClassifyInvoiceByRef(ref string) ([]string, error) {
 	classes := []string{}
 	for _, class := range invoiceClasses {
 		_, err := client.GetInvoiceByClassAndRef(class, ref)
-		if err != nil {
+		if err == nil {
 			classes = append(classes, class)
 		}
 	}
