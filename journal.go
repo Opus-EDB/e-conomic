@@ -55,6 +55,15 @@ func (client *Client) GetDraftEntriesCount() (int, error) {
 
 func (client *Client) GetCashPaymentById(id int) (JournalEntry, error) {
 	je := JournalEntry{}
+	jes, err := client.GetCashPaymentsById(id)
+	if err != nil {
+		return je, err
+	}
+	return jes[0], err
+}
+
+func (client *Client) GetCashPaymentsById(id int) ([]JournalEntry, error) {
+	jes := []JournalEntry{}
 	resp := ItemsReponse[JournalEntry]{}
 	params := url.Values{
 		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
@@ -64,10 +73,9 @@ func (client *Client) GetCashPaymentById(id int) (JournalEntry, error) {
 		log.Printf("Error: %s", err)
 	}
 	if len(resp.Items) == 0 {
-		return je, fmt.Errorf("no payment with id %d", id)
+		return jes, fmt.Errorf("no payment with id %d", id)
 	}
-	je = resp.Items[0]
-	return je, err
+	return resp.Items, err
 }
 
 // Get a booked cash payment by its voucher number.
@@ -79,6 +87,15 @@ func (client *Client) GetCashPaymentById(id int) (JournalEntry, error) {
 // The amount will always be negative when IsCredit=true.
 func (client *Client) GetBookedCashPaymentById(id int) (JournalEntry, error) {
 	je := JournalEntry{}
+	jes, err := client.GetBookedCashPaymentsById(id)
+	if err != nil {
+		return je, err
+	}
+	return jes[0], err
+}
+
+func (client *Client) GetBookedCashPaymentsById(id int) ([]JournalEntry, error) {
+	jes := []JournalEntry{}
 	resp := ItemsReponse[JournalEntry]{}
 	params := url.Values{
 		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
@@ -88,10 +105,9 @@ func (client *Client) GetBookedCashPaymentById(id int) (JournalEntry, error) {
 		log.Printf("Error: %s", err)
 	}
 	if len(resp.Items) == 0 {
-		return je, fmt.Errorf("no payment with id %d", id)
+		return jes, fmt.Errorf("no payment with id %d", id)
 	}
-	je = resp.Items[0]
-	return je, err
+	return resp.Items, err
 }
 
 func (client *Client) BookAllEntries(journalNumber int) error {
@@ -108,6 +124,7 @@ func (client *Client) GetJournalBalanceById(id int) (float64, error) {
 		log.Printf("Error: %s", err)
 	}
 	balance := 0.0
+	fmt.Printf("RESPONSE journal balance %+v\n", resp)
 	for _, item := range resp.Items {
 		a, err := item.Amount.Float64()
 		if err != nil {
