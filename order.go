@@ -89,7 +89,7 @@ func (client *Client) GetOneInvoiceByClassAndRef(class, ref string) (Invoice, er
 }
 
 func (client *Client) GetDraftInvoiceByRef(ref string) (invoice Invoice, err error) {
-	return client.GetOneInvoiceByClassAndRef("draft", ref)
+	return client.GetOneInvoiceByClassAndRef("drafts", ref)
 }
 
 func (client *Client) GetBookedInvoiceByRef(ref string) (invoice Invoice, err error) {

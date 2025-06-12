@@ -46,6 +46,7 @@ type Invoice struct {
 	NotesHeading                   string  `json:"notesHeading"`                   // The invoice heading. Usually displayed at the top of the invoice.
 	NotesTextLine1                 string  `json:"notesTextLine1"`                 // The first line of supplementary text on the invoice. This is usually displayed right under the heading in a smaller font.
 	NotesTextLine2                 string  `json:"notesTextLine2"`                 // The second line of supplementary text in the notes on the invoice. This is usually displayed as a footer on the invoice.
+	Customer Customer `json:"customer"`
 	CustomerContactNumber          int     `json:"customerContactNumber"`          // Unique identifier of the customer contact.
 	CustomerContactSelf            string  `json:"customerContactSelf"`            // A unique reference to the customer contact resource.
 	SalesPersonEmployeeNumber      int     `json:"salesPersonEmployeeNumber"`      // Unique identifier of the employee.
