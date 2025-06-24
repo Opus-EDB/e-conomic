@@ -77,7 +77,7 @@ func (client *Client) GetCustomerContactNumber(customerNumber int) (int, error) 
 	contacts, err := client.getCustomerContacts(customerNumber)
 	if err != nil {
 		return 0, err
-	} else if (len(contacts) < 1) {
+	} else if len(contacts) < 1 {
 		return 0, fmt.Errorf("no customer contact found with customer number %d", customerNumber)
 	} else {
 		return contacts[0].CustomerContactNumber, nil
