@@ -264,7 +264,7 @@ type Delivery struct {
 type Notes struct {
 	Heading   string `json:"heading,omitempty"`   //The order heading. Usually displayed at the top of the order."`
 	TextLine1 string `json:"textLine1,omitempty"` //The first line of supplementary text on the order. This is usually displayed right under the heading in a smaller font."`
-	TextLine2 string `json:"textLine2,omitempty"` //The snd line of supplementary text in the notes on the order. This is usually displayed as a footer on the order."`
+	TextLine2 string `json:"textLine2,omitempty"` //The 2nd line of supplementary text in the notes on the order. This is usually displayed as a footer on the order."`
 }
 
 type References struct {
