@@ -124,7 +124,6 @@ func (client *Client) GetJournalBalanceById(id int) (float64, error) {
 		log.Printf("Error: %s", err)
 	}
 	balance := 0.0
-	fmt.Printf("RESPONSE journal balance %+v\n", resp)
 	for _, item := range resp.Items {
 		a, err := item.Amount.Float64()
 		if err != nil {
