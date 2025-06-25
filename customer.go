@@ -18,14 +18,23 @@ func (client *Client) GetCustomer(customer *Customer) error {
 }
 */
 
-func (client *Client) CreateCustomer(customer *Customer) (*Customer, error) {
+func (client *Client) CreateCustomer(customer *Customer, contact *CustomerContact) (*Customer, error) {
 	r := Customer{}
 	err := client.callRestAPI("customers", http.MethodPost, customer, &r)
+	if err != nil {
+		return &r, err
+	}
+	err = client.getOrCreateContact(&r, contact)
 	return &r, err
 }
 
-func (client *Client) UpdateCustomer(customer *Customer) error {
-	return client.callRestAPI(fmt.Sprintf("customers/%d", customer.CustomerNumber), http.MethodPut, customer, nil)
+func (client *Client) UpdateCustomer(customer *Customer, contact *CustomerContact) error {
+	err := client.callRestAPI(fmt.Sprintf("customers/%d", customer.CustomerNumber), http.MethodPut, customer, nil)
+	if err != nil {
+		return err
+	}
+	err = client.getOrCreateContact(customer, contact)
+	return err
 }
 
 func (client *Client) DeleteCustomer(customer *Customer) error {
@@ -33,30 +42,8 @@ func (client *Client) DeleteCustomer(customer *Customer) error {
 	return err
 }
 
-// GetCustomer gets a customer from economic by customer number. If the
-// customer does not exist, it creates a new customer in economic using the
-// provided.  `customer` is read and modified in-place.
-func (client *Client) GetOrCreateCustomer(customer *Customer, contact CustomerContact) error {
-	if customer.CorporateIdentificationNumber == "" && customer.VatNumber == "" {
-		return fmt.Errorf("no corporate identification number or vat number provided")
-	} else if customer.CorporateIdentificationNumber != "" {
-		customer.VatNumber = customer.CorporateIdentificationNumber
-	}
-	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
-	if len(customers) == 0 {
-		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		c, err := client.CreateCustomer(customer)
-		if err != nil {
-			log.Printf("Error: %s", err)
-			return err
-		}
-		customers = append(customers, *c)
-	}
-	if len(customers) > 1 {
-		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
-	}
-	*customer = customers[0]
-	contacts, err := client.getCustomerContacts(customers[0].CustomerNumber)
+func (client *Client) getOrCreateContact(customer *Customer, contact *CustomerContact) error {
+	contacts, err := client.getCustomerContacts(customer.CustomerNumber)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		return err
@@ -67,11 +54,38 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact CustomerCo
 			return nil
 		}
 	}
-	_, err = client.createCustomerContact(customers[0].CustomerNumber, contact)
+	_, err = client.createCustomerContact(customer.CustomerNumber, *contact)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
 	return err
+}
+
+// GetCustomer gets a customer from economic by customer number. If the
+// customer does not exist, it creates a new customer in economic using the
+// provided.  `customer` is read and modified in-place.
+func (client *Client) GetOrCreateCustomer(customer *Customer, contact CustomerContact) error {
+	if customer.CorporateIdentificationNumber == "" && customer.VatNumber == "" {
+		return fmt.Errorf("no corporate identification number or vat number provided")
+	}
+	if customer.CorporateIdentificationNumber != "" {
+		customer.VatNumber = customer.CorporateIdentificationNumber
+	}
+	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
+	if len(customers) == 0 {
+		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
+		c, err := client.CreateCustomer(customer, &contact)
+		if err != nil {
+			log.Printf("Error: %s", err)
+			return err
+		}
+		customers = append(customers, *c)
+	}
+	if len(customers) > 1 {
+		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
+	}
+	*customer = customers[0]
+	return client.getOrCreateContact(customer, &contact)
 }
 
 // Updates or creates a company based on the corporate identification number.
@@ -79,7 +93,7 @@ func (client *Client) UpdateOrCreateCustomer(customer Customer) error {
 	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
 	if len(customers) == 0 {
 		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		c, err := client.CreateCustomer(&customer)
+		c, err := client.CreateCustomer(&customer, nil)
 		if err != nil {
 			log.Printf("Error: %s", err)
 			return err
@@ -90,7 +104,7 @@ func (client *Client) UpdateOrCreateCustomer(customer Customer) error {
 		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
 	}
 	customer.CustomerNumber = customers[0].CustomerNumber
-	return client.UpdateCustomer(&customer)
+	return client.UpdateCustomer(&customer, nil)
 }
 
 func (client *Client) FindCustomerByOrgNumber(org string) []Customer {
