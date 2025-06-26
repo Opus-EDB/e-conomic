@@ -53,8 +53,8 @@ func (client *Client) callRestAPI(endpoint, method string, request, response any
 	body.ReadFrom(res.Body)
 	log.Printf("e-conomic/REST %s %s => %d", method, endpoint, res.StatusCode)
 	if res.StatusCode >= 400 {
-		log.Printf("error in calling e-conomic (%s %s) err: %s", url, method, body.String())
-		return fmt.Errorf("error in calling e-conomic (%s %s) err: %s", url, method, body.String())
+		log.Printf("error calling e-conomic (%s %s) err: %s", url, method, body.String())
+		return fmt.Errorf("error calling e-conomic (%s %s) err: %s", url, method, body.String())
 	}
 	if response == nil {
 		return nil

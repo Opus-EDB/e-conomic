@@ -21,43 +21,24 @@ func (client *Client) GetCustomer(customer *Customer) error {
 func (client *Client) CreateCustomer(customer *Customer, contact *CustomerContact) (*Customer, error) {
 	r := Customer{}
 	err := client.callRestAPI("customers", http.MethodPost, customer, &r)
-	if err != nil {
+	if err != nil || contact == nil {
 		return &r, err
 	}
-	err = client.getOrCreateContact(&r, contact)
+	err = client.UpdateOrCreateContact(r, *contact)
 	return &r, err
 }
 
 func (client *Client) UpdateCustomer(customer *Customer, contact *CustomerContact) error {
 	err := client.callRestAPI(fmt.Sprintf("customers/%d", customer.CustomerNumber), http.MethodPut, customer, nil)
-	if err != nil {
+	if err != nil || contact == nil {
 		return err
 	}
-	err = client.getOrCreateContact(customer, contact)
+	err = client.UpdateOrCreateContact(*customer, *contact)
 	return err
 }
 
 func (client *Client) DeleteCustomer(customer *Customer) error {
 	err := client.callRestAPI(fmt.Sprintf("customers/%d", customer.CustomerNumber), http.MethodDelete, nil, nil)
-	return err
-}
-
-func (client *Client) getOrCreateContact(customer *Customer, contact *CustomerContact) error {
-	contacts, err := client.getCustomerContacts(customer.CustomerNumber)
-	if err != nil {
-		log.Printf("Error: %s", err)
-		return err
-	}
-	// Check if contact already exists
-	for _, c := range contacts {
-		if c.Email == contact.Email {
-			return nil
-		}
-	}
-	_, err = client.createCustomerContact(customer.CustomerNumber, *contact)
-	if err != nil {
-		log.Printf("Error: %s", err)
-	}
 	return err
 }
 
@@ -85,11 +66,11 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact CustomerCo
 		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
 	}
 	*customer = customers[0]
-	return client.getOrCreateContact(customer, &contact)
+	return client.UpdateOrCreateContact(*customer, contact)
 }
 
 // Updates or creates a company based on the corporate identification number.
-func (client *Client) UpdateOrCreateCustomer(customer Customer) error {
+func (client *Client) UpdateOrCreateCustomer(customer Customer, contact CustomerContact) error {
 	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
 	if len(customers) == 0 {
 		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
@@ -104,7 +85,7 @@ func (client *Client) UpdateOrCreateCustomer(customer Customer) error {
 		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
 	}
 	customer.CustomerNumber = customers[0].CustomerNumber
-	return client.UpdateCustomer(&customer, nil)
+	return client.UpdateCustomer(&customer, &contact)
 }
 
 func (client *Client) FindCustomerByOrgNumber(org string) []Customer {
