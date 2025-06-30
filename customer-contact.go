@@ -35,10 +35,7 @@ func (client *Client) UpdateOrCreateContact(customer Customer, contact CustomerC
 		}
 		customers = append(customers, *c)
 	}
-	if len(customers) > 1 {
-		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
-	}
-	customer = customers[0]
+	customer = getRightCustomerFromList(customers)
 	contacts, err := client.getCustomerContacts(customer.CustomerNumber)
 	if err != nil {
 		log.Printf("Error: %s", err)

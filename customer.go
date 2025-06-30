@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 func (client *Client) GetCustomerByNumber(number int) (*Customer, error) {
@@ -42,6 +43,18 @@ func (client *Client) DeleteCustomer(customer *Customer) error {
 	return err
 }
 
+func getRightCustomerFromList(customers []Customer) Customer {
+	if len(customers) > 1 {
+		fmt.Printf("multiple customers found with org number %s", customers[0].CorporateIdentificationNumber)
+		for _, customer := range customers {
+			if customer.CorporateIdentificationNumber == strconv.Itoa(customer.CustomerNumber) {
+				return customer
+			}
+		}
+	}
+	return customers[0]
+}
+
 // GetCustomer gets a customer from economic by customer number. If the
 // customer does not exist, it creates a new customer in economic using the
 // provided.  `customer` is read and modified in-place.
@@ -62,10 +75,7 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact CustomerCo
 		}
 		customers = append(customers, *c)
 	}
-	if len(customers) > 1 {
-		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
-	}
-	*customer = customers[0]
+	*customer = getRightCustomerFromList(customers)
 	return client.UpdateOrCreateContact(*customer, contact)
 }
 
@@ -81,10 +91,7 @@ func (client *Client) UpdateOrCreateCustomer(customer Customer, contact Customer
 		}
 		customers = append(customers, *c)
 	}
-	if len(customers) > 1 {
-		return fmt.Errorf("multiple customers found with org number %s", customer.CorporateIdentificationNumber)
-	}
-	customer.CustomerNumber = customers[0].CustomerNumber
+	customer = getRightCustomerFromList(customers)
 	return client.UpdateCustomer(&customer, &contact)
 }
 
