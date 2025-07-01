@@ -24,7 +24,7 @@ func (c *Customer) SetID(id int) {
 }
 
 func (client *Client) UpdateOrCreateContact(customer Customer, contact CustomerContact) error {
-	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
+	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber) // CHANGE this XXX
 	if len(customers) == 0 {
 		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
 		c := &customer
@@ -35,7 +35,7 @@ func (client *Client) UpdateOrCreateContact(customer Customer, contact CustomerC
 		}
 		customers = append(customers, *c)
 	}
-	customer = getRightCustomerFromList(customers)
+	customer.CustomerNumber = getRightCustomerFromList(customers).CustomerNumber
 	contacts, err := client.getCustomerContacts(customer.CustomerNumber)
 	if err != nil {
 		log.Printf("Error: %s", err)

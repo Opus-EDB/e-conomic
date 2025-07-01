@@ -55,6 +55,25 @@ func getRightCustomerFromList(customers []Customer) Customer {
 	return customers[0]
 }
 
+func (client *Client) GetCustomer(customer Customer) (*Customer, error) {
+	if customer.CorporateIdentificationNumber == "" && customer.VatNumber == "" {
+		return nil, fmt.Errorf("no corporate identification number or vat number provided")
+	}
+	customerInEconomic, _ := client.GetCustomerByNumber(customer.CustomerNumber)
+	if customerInEconomic.CustomerNumber != 0 && customerInEconomic.CorporateIdentificationNumber != customer.CorporateIdentificationNumber {
+		customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
+		if len(customers) == 0 {
+			return nil, nil
+		}
+		customer.CustomerNumber = getRightCustomerFromList(customers).CustomerNumber
+		return &customer, nil
+	} else if customerInEconomic.CustomerNumber == 0 {
+		return nil, nil
+	} else {
+		return customerInEconomic, nil
+	}
+}
+
 // GetCustomer gets a customer from economic by customer number. If the
 // customer does not exist, it creates a new customer in economic using the
 // provided.  `customer` is read and modified in-place.
@@ -65,33 +84,50 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact CustomerCo
 	if customer.CorporateIdentificationNumber != "" {
 		customer.VatNumber = customer.CorporateIdentificationNumber
 	}
-	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
-	if len(customers) == 0 {
-		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		c, err := client.CreateCustomer(customer, &contact)
+	// use above new function
+	customerInEconomic, _ := client.GetCustomerByNumber(customer.CustomerNumber)
+	if customerInEconomic.CustomerNumber == 0 {
+		var err error
+		customer, err = client.CreateCustomer(customer, &contact)
 		if err != nil {
 			log.Printf("Error: %s", err)
 			return err
 		}
-		customers = append(customers, *c)
+	} else {
+		if customerInEconomic.CorporateIdentificationNumber != customer.CorporateIdentificationNumber {
+			customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
+			if len(customers) == 0 {
+				log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
+				customer.CustomerNumber = 0
+				c, err := client.CreateCustomer(customer, &contact)
+				if err != nil {
+					log.Printf("Error: %s", err)
+					return err
+				}
+				customers = append(customers, *c)
+			}
+			customer.CustomerNumber = getRightCustomerFromList(customers).CustomerNumber
+		}
 	}
-	*customer = getRightCustomerFromList(customers)
-	return client.UpdateOrCreateContact(*customer, contact)
+	return client.UpdateOrCreateContact(*customer, contact) // check this method
 }
 
-// Updates or creates a company based on the corporate identification number.
 func (client *Client) UpdateOrCreateCustomer(customer Customer, contact CustomerContact) error {
-	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
-	if len(customers) == 0 {
-		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		c, err := client.CreateCustomer(&customer, nil) // don't include contact here
-		if err != nil {
-			log.Printf("Error: %s", err)
-			return err
+	customerInEconomic, _ := client.GetCustomerByNumber(customer.CustomerNumber)
+	if customerInEconomic.CustomerNumber == 0 {
+		customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber) // do something else here!
+		if len(customers) == 0 {
+			log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
+			c, err := client.CreateCustomer(&customer, nil) // don't include contact here
+			if err != nil {
+				log.Printf("Error: %s", err)
+				return err
+			}
+			customers = append(customers, *c)
 		}
-		customers = append(customers, *c)
+		customer.CustomerNumber = getRightCustomerFromList(customers).CustomerNumber
 	}
-	customer = getRightCustomerFromList(customers)
+	fmt.Printf("customer %+v\n", customer)
 	return client.UpdateCustomer(&customer, &contact)
 }
 
@@ -131,7 +167,7 @@ type Customer struct {
 	PublicEntryNumber             string       `json:"publicEntryNumber,omitempty"`             // The public entry number is used for electronic invoicing, to define the account invoices will be registered on at the customer.
 	TelephoneAndFaxNumber         string       `json:"telephoneAndFaxNumber,omitempty"`         // The customer's telephone and/or fax number.
 	MobilePhone                   string       `json:"mobilePhone,omitempty"`                   // The customer's mobile phone number.
-	EInvoicingDisabledByDefault   bool         `json:"eInvoicingDisabledByDefault,omitempty"`   // Boolean indication of whether the default sending method should be email instead of e-invoice. This property is updatable only by using PATCH to /customers/:customerNumber
+	EInvoicingDisabledByDefault   bool         `json:"eInvoicingDisabledByDefault,omitempty"`   // Boolean indication of whether the default sending method should be email instead of e-invoice. This property is updatable only by using PATCH to /customers/:customerNumber // XXX??
 	VatNumber                     string       `json:"vatNumber,omitempty"`                     // The customer's value added tax identification number. This field is only available to agreements in Sweden, UK, Germany, Poland and Finland. Not to be mistaken for the danish CVR number, which is defined on the corporateIdentificationNumber property.
 	Website                       string       `json:"website,omitempty"`                       // Customer website, if applicable.
 	SalesPerson                   *SalesPerson `json:"salesPerson,omitempty"`                   // Reference to the employee responsible for contact with this customer.
