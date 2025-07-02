@@ -23,19 +23,17 @@ func (c *Customer) SetID(id int) {
 	c.CustomerNumber = id
 }
 
-func (client *Client) UpdateOrCreateContact(customer Customer, contact CustomerContact) error {
-	customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber) // CHANGE this XXX
-	if len(customers) == 0 {
-		log.Printf("No customer found with org number %s - creating", customer.CorporateIdentificationNumber)
-		c := &customer
-		c, err := client.CreateCustomer(c, nil) // don't include contact here
-		if err != nil {
-			log.Printf("Error: %s", err)
-			return err
-		}
-		customers = append(customers, *c)
+func (client *Client) UpdateOrCreateContact(customer Customer, contact *CustomerContact) error {
+	var customerInEconomic *Customer
+	customerInEconomic, err := client.GetOrCreateCustomer(&customer, nil)
+	if err != nil {
+		return err
 	}
-	customer.CustomerNumber = getRightCustomerFromList(customers).CustomerNumber
+	customer = *customerInEconomic
+
+	if contact == nil {
+		return nil
+	}
 	contacts, err := client.getCustomerContacts(customer.CustomerNumber)
 	if err != nil {
 		log.Printf("Error: %s", err)
@@ -54,7 +52,7 @@ func (client *Client) UpdateOrCreateContact(customer Customer, contact CustomerC
 			return nil
 		}
 	}
-	_, err = client.createCustomerContact(customer.CustomerNumber, contact)
+	_, err = client.createCustomerContact(customer.CustomerNumber, *contact)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
