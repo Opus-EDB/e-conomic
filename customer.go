@@ -3,7 +3,9 @@ package economic
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
+	"regexp"
 	"strconv"
 )
 
@@ -19,10 +21,24 @@ func (client *Client) GetCustomer(customer *Customer) error {
 }
 */
 
+func generateRandomCustomNumber() int {
+	minimumCustumerNumber := int(1e8)
+	maximumCustumerNumber := int(1e10) - 1
+	return rand.Intn(maximumCustumerNumber-minimumCustumerNumber) + minimumCustumerNumber
+}
+
 func (client *Client) CreateCustomer(customer *Customer, contact *CustomerContact) (*Customer, error) {
+	if customer == nil {
+		return nil, fmt.Errorf("No customer created")
+	}
+	if customer.CustomerNumber == 0 {
+		customer.CustomerNumber = generateRandomCustomNumber()
+		return client.CreateCustomer(customer, contact)
+	}
 	r := Customer{}
 	err := client.callRestAPI("customers", http.MethodPost, customer, &r)
 	if err != nil || contact == nil {
+		fmt.Printf("Error creating customer %+v %s\n", *customer, err.Error())
 		return &r, err
 	}
 	err = client.UpdateOrCreateContact(r, contact)
@@ -77,24 +93,34 @@ func (client *Client) GetCustomer(customer Customer) (*Customer, error) {
 	}
 }
 
+func entityAlreadyInEconomic(message string) bool {
+        re := regexp.MustCompile("\"errorCode\": \"E06010\"") // response is not JSON, so we're using regex here
+        return re.MatchString(message)
+}
+
 // GetCustomer gets a customer from economic by customer number. If the
 // customer does not exist, it creates a new customer in economic using the
 // provided.  `customer` is read and modified in-place.
-func (client *Client) GetOrCreateCustomer(customer *Customer, contact *CustomerContact) (*Customer, error) {
+func (client *Client) GetOrCreateCustomer(customer *Customer, contact *CustomerContact, count int) (*Customer, error) {
 	if customer.CorporateIdentificationNumber == "" && customer.VatNumber == "" {
 		return nil, fmt.Errorf("no corporate identification number or vat number provided")
 	}
 	if customer.CorporateIdentificationNumber != "" {
 		customer.VatNumber = customer.CorporateIdentificationNumber
 	}
-	customer, err := client.GetCustomer(*customer)
+	customerInEconomic, err := client.GetCustomer(*customer)
 	if err != nil {
 		return nil, err
 	}
 
-	if customer == nil {
-		customer.CustomerNumber = 0
+	if customerInEconomic == nil {
+		customer.CustomerNumber = generateRandomCustomNumber()
 		customer, err = client.CreateCustomer(customer, contact)
+		if err != nil && entityAlreadyInEconomic(err.Error()) {
+			fmt.Printf("Customer with customer number %d already exists\n", customer.CustomerNumber)
+			customer.CustomerNumber = generateRandomCustomNumber()
+			return client.GetOrCreateCustomer(customer, contact, count++) // XXX??
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +130,7 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact *CustomerC
 }
 
 func (client *Client) UpdateOrCreateCustomer(customer Customer, contact CustomerContact) error {
-	customerInEconomic, err := client.GetOrCreateCustomer(&customer, &contact)
+	customerInEconomic, err := client.GetOrCreateCustomer(&customer, &contact, 1)
 	if err != nil {
 		return err
 	}
