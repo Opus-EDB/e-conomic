@@ -190,7 +190,7 @@ type Customer struct {
 	PublicEntryNumber             string       `json:"publicEntryNumber,omitempty"`             // The public entry number is used for electronic invoicing, to define the account invoices will be registered on at the customer.
 	TelephoneAndFaxNumber         string       `json:"telephoneAndFaxNumber,omitempty"`         // The customer's telephone and/or fax number.
 	MobilePhone                   string       `json:"mobilePhone,omitempty"`                   // The customer's mobile phone number.
-	EInvoicingDisabledByDefault   bool         `json:"eInvoicingDisabledByDefault,omitempty"`   // Boolean indication of whether the default sending method should be email instead of e-invoice. This property is updatable only by using PATCH to /customers/:customerNumber // XXX??
+	EInvoicingDisabledByDefault   bool         `json:"eInvoicingDisabledByDefault,omitempty"`   // Boolean indication of whether the default sending method should be email instead of e-invoice. This property is updatable only by using PATCH to /customers/:customerNumber
 	VatNumber                     string       `json:"vatNumber,omitempty"`                     // The customer's value added tax identification number. This field is only available to agreements in Sweden, UK, Germany, Poland and Finland. Not to be mistaken for the danish CVR number, which is defined on the corporateIdentificationNumber property.
 	Website                       string       `json:"website,omitempty"`                       // Customer website, if applicable.
 	SalesPerson                   *SalesPerson `json:"salesPerson,omitempty"`                   // Reference to the employee responsible for contact with this customer.
