@@ -45,16 +45,19 @@ func (client *Client) CreateCustomer(customer *Customer, contact *CustomerContac
 	return &r, err
 }
 
-func (client *Client) UpdateCustomer(customer *Customer, contact *CustomerContact) error {
+func (client *Client) UpdateCustomer(customer *Customer, contact *CustomerContact) (int, error) {
 	if customer == nil {
-		return nil
+		return 0, nil
 	}
 	err := client.callRestAPI(fmt.Sprintf("customers/%d", customer.CustomerNumber), http.MethodPut, customer, nil)
-	if err != nil || contact == nil {
-		return err
+	if err != nil {
+		return 0, err
+	}
+	if contact == nil {
+		return customer.CustomerNumber, nil
 	}
 	err = client.UpdateOrCreateContact(*customer, contact)
-	return err
+	return customer.CustomerNumber, err
 }
 
 func (client *Client) DeleteCustomer(customer *Customer) error {
@@ -63,6 +66,7 @@ func (client *Client) DeleteCustomer(customer *Customer) error {
 }
 
 func getRightCustomerFromList(customers []Customer) Customer {
+	fmt.Printf("list customers %+v\n", customers)
 	if len(customers) > 1 {
 		fmt.Printf("multiple customers found with org number %s", customers[0].CorporateIdentificationNumber)
 		for _, customer := range customers {
@@ -79,12 +83,15 @@ func (client *Client) GetCustomer(customer Customer) (*Customer, error) {
 		return nil, fmt.Errorf("no corporate identification number or vat number provided")
 	}
 	customerInEconomic, _ := client.GetCustomerByNumber(customer.CustomerNumber)
+	fmt.Printf("customer in E-co %+v\n", customerInEconomic)
 	if customerInEconomic.CustomerNumber != 0 && customerInEconomic.CorporateIdentificationNumber != customer.CorporateIdentificationNumber {
 		customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
+		fmt.Printf("customers by org number %+v\n", customers)
 		if len(customers) == 0 {
 			return nil, nil
 		}
 		customer.CustomerNumber = getRightCustomerFromList(customers).CustomerNumber
+		fmt.Printf("right customer %+v\n", customer)
 		return &customer, nil
 	} else if customerInEconomic.CustomerNumber == 0 {
 		return nil, nil
@@ -98,6 +105,8 @@ func entityAlreadyInEconomic(message string) bool {
         return re.MatchString(message)
 }
 
+const MAX_NUMBER_CREATE_CUSTOMER_ATTEMPTS = 10
+
 // GetCustomer gets a customer from economic by customer number. If the
 // customer does not exist, it creates a new customer in economic using the
 // provided.  `customer` is read and modified in-place.
@@ -108,31 +117,39 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact *CustomerC
 	if customer.CorporateIdentificationNumber != "" {
 		customer.VatNumber = customer.CorporateIdentificationNumber
 	}
+	fmt.Printf("count %d\n", count)
 	customerInEconomic, err := client.GetCustomer(*customer)
+	fmt.Printf("c in e-co %+v\n", customerInEconomic)
 	if err != nil {
 		return nil, err
 	}
 
+	if count > MAX_NUMBER_CREATE_CUSTOMER_ATTEMPTS {
+		fmt.Printf("Exceeded the maximum number of attempts to create a customer %+v\n", customer)
+		return nil, fmt.Errorf("Exceeded the maximum number of attempts to create a customer\n")
+	}
 	if customerInEconomic == nil {
 		customer.CustomerNumber = generateRandomCustomNumber()
 		customer, err = client.CreateCustomer(customer, contact)
 		if err != nil && entityAlreadyInEconomic(err.Error()) {
+			count++
 			fmt.Printf("Customer with customer number %d already exists\n", customer.CustomerNumber)
 			customer.CustomerNumber = generateRandomCustomNumber()
-			return client.GetOrCreateCustomer(customer, contact, count++) // XXX??
+			return client.GetOrCreateCustomer(customer, contact, count)
 		}
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return customer, client.UpdateOrCreateContact(*customer, contact) // check this method
+	return customer, client.UpdateOrCreateContact(*customer, contact)
 }
 
-func (client *Client) UpdateOrCreateCustomer(customer Customer, contact CustomerContact) error {
+func (client *Client) UpdateOrCreateCustomer(customer Customer, contact CustomerContact) (int, error) {
+	fmt.Printf("Update or create customer")
 	customerInEconomic, err := client.GetOrCreateCustomer(&customer, &contact, 1)
 	if err != nil {
-		return err
+		return customerInEconomic.CustomerNumber, err
 	}
 	return client.UpdateCustomer(customerInEconomic, &contact)
 }

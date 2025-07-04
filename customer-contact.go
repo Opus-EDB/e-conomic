@@ -25,7 +25,8 @@ func (c *Customer) SetID(id int) {
 
 func (client *Client) UpdateOrCreateContact(customer Customer, contact *CustomerContact) error {
 	var customerInEconomic *Customer
-	customerInEconomic, err := client.GetOrCreateCustomer(&customer, nil, 1)
+	fmt.Printf("Update or create contact")
+	customerInEconomic, err := client.GetCustomer(customer)
 	if err != nil {
 		return err
 	}
