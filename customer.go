@@ -101,8 +101,8 @@ func (client *Client) GetCustomer(customer Customer) (*Customer, error) {
 }
 
 func entityAlreadyInEconomic(message string) bool {
-        re := regexp.MustCompile("\"errorCode\": \"E06010\"") // response is not JSON, so we're using regex here
-        return re.MatchString(message)
+	re := regexp.MustCompile("\"errorCode\": \"E06010\"") // response is not JSON, so we're using regex here
+	return re.MatchString(message)
 }
 
 const MAX_NUMBER_CREATE_CUSTOMER_ATTEMPTS = 10
