@@ -128,7 +128,8 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact *CustomerC
 		fmt.Printf("Exceeded the maximum number of attempts to create a customer %+v\n", customer)
 		return nil, fmt.Errorf("Exceeded the maximum number of attempts to create a customer\n")
 	}
-	if customerInEconomic == nil {
+	foundDifferentCustomerInEconomic := customerInEconomic.CorporateIdentificationNumber != customer.CorporateIdentificationNumber && customerInEconomic.VatNumber != customer.VatNumber
+	if (customerInEconomic == nil || foundDifferentCustomerInEconomic) {
 		customer.CustomerNumber = generateRandomCustomNumber()
 		customer, err = client.CreateCustomer(customer, contact)
 		if err != nil && entityAlreadyInEconomic(err.Error()) {
