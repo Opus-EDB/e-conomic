@@ -24,7 +24,9 @@ func (client *Client) GetCustomer(customer *Customer) error {
 func generateRandomCustomNumber() int {
 	minimumCustumerNumber := int(1e8)
 	maximumCustumerNumber := int(1e9) - 1
-	return rand.Intn(maximumCustumerNumber-minimumCustumerNumber) + minimumCustumerNumber
+	newCustomNumber := rand.Intn(maximumCustumerNumber-minimumCustumerNumber) + minimumCustumerNumber
+	fmt.Printf("New custom number %d\n", newCustomNumber)
+	return newCustomNumber
 }
 
 func (client *Client) CreateCustomer(customer *Customer, contact *CustomerContact) (*Customer, error) {
@@ -37,8 +39,11 @@ func (client *Client) CreateCustomer(customer *Customer, contact *CustomerContac
 	}
 	r := Customer{}
 	err := client.callRestAPI("customers", http.MethodPost, customer, &r)
-	if err != nil || contact == nil {
+	if err != nil {
 		fmt.Printf("Error creating customer %+v %s\n", *customer, err.Error())
+		return &r, err
+	}
+	if contact == nil {
 		return &r, err
 	}
 	err = client.UpdateOrCreateContact(r, contact)
@@ -121,6 +126,7 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact *CustomerC
 	customerInEconomic, err := client.GetCustomer(*customer)
 	fmt.Printf("c in e-co %+v\n", customerInEconomic)
 	if err != nil {
+		fmt.Printf("Error getting customer %d\n", customer.CustomerNumber)
 		return nil, err
 	}
 
@@ -128,19 +134,24 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact *CustomerC
 		fmt.Printf("Exceeded the maximum number of attempts to create a customer %+v\n", customer)
 		return nil, fmt.Errorf("Exceeded the maximum number of attempts to create a customer\n")
 	}
-	foundDifferentCustomerInEconomic := customerInEconomic != nil && customerInEconomic.CorporateIdentificationNumber != customer.CorporateIdentificationNumber && customerInEconomic.VatNumber != customer.VatNumber
-	if customerInEconomic == nil || foundDifferentCustomerInEconomic {
-		customer.CustomerNumber = generateRandomCustomNumber()
+	if customerInEconomic == nil {
 		customer, err = client.CreateCustomer(customer, contact)
 		if err != nil && entityAlreadyInEconomic(err.Error()) {
 			count++
-			fmt.Printf("Customer with customer number %d already exists\n", customer.CustomerNumber)
+			fmt.Printf("Warning: (this should not be possible) Customer with customer number %d already exists\n", customer.CustomerNumber)
 			customer.CustomerNumber = generateRandomCustomNumber()
 			return client.GetOrCreateCustomer(customer, contact, count)
 		}
 		if err != nil {
 			return nil, err
 		}
+	}
+	foundDifferentCustomerInEconomic := customerInEconomic != nil && customerInEconomic.CorporateIdentificationNumber != customer.CorporateIdentificationNumber && customerInEconomic.VatNumber != customer.VatNumber
+	if foundDifferentCustomerInEconomic {
+		fmt.Printf("Customer with customer number %d already exists\n", customer.CustomerNumber)
+		customer.CustomerNumber = generateRandomCustomNumber()
+		count++
+		return client.GetOrCreateCustomer(customer, contact, count)
 	}
 
 	return customer, client.UpdateOrCreateContact(*customer, contact)

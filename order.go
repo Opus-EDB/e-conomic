@@ -8,6 +8,7 @@ import (
 )
 
 func (client *Client) CreateInvoice(order *Order) (invoice Invoice, err error) {
+	fmt.Printf("ORDER %+v\n", order)
 	err = client.callRestAPI("invoices/drafts", http.MethodPost, order, &invoice)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
