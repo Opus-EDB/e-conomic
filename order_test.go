@@ -29,7 +29,7 @@ func TestCreateOrderDraft(t *testing.T) {
 		Email: "jungle@abe.com",
 	}
 	client := getTestClient()
-	err := client.GetOrCreateCustomer(c, contact)
+	_, err := client.GetOrCreateCustomer(c, &contact, 1)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -113,7 +113,7 @@ func TestGetInvoice(t *testing.T) {
 		Email: "jungle@abe.com",
 	}
 	client := getTestClient()
-	err := client.GetOrCreateCustomer(c, contact)
+	_, err := client.GetOrCreateCustomer(c, &contact, 1)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}

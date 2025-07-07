@@ -39,7 +39,7 @@ func TestFindCustomerByName(t *testing.T) {
 	}
 
 	client := getTestClient()
-	client.CreateCustomer(&c)
+	client.CreateCustomer(&c, nil)
 	defer client.DeleteCustomer(&c)
 	found := client.FindCustomerByOrgNumber("28971958")
 	if len(found) == 0 {
@@ -75,7 +75,7 @@ func TestGetOrCreateCustomer(t *testing.T) {
 		Email: "jungle@abe.com",
 	}
 	client := getTestClient()
-	err := client.GetOrCreateCustomer(c, contact)
+	_, err := client.GetOrCreateCustomer(c, &contact, 1)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -87,7 +87,7 @@ func TestGetOrCreateCustomer(t *testing.T) {
 		Name:  "Employee 2 Testesen",
 		Email: "employee2@abe.com",
 	}
-	err = client.GetOrCreateCustomer(c, contact2)
+	_, err = client.GetOrCreateCustomer(c, &contact2, 1)
 	defer client.DeleteCustomer(c)
 	if err != nil {
 		t.Fatalf("Error: %s", err)

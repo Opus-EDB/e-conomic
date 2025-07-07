@@ -23,7 +23,7 @@ func TestEconomicCustomer(t *testing.T) {
 		},
 	}
 	client := getTestClient()
-	c, err := client.CreateCustomer(c)
+	c, err := client.CreateCustomer(c, nil)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}

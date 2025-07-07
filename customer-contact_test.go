@@ -22,7 +22,7 @@ func TestUpdateOrCreateContact(t *testing.T) {
 		},
 		CorporateIdentificationNumber: "66666667",
 	}
-	_, err := client.CreateCustomer(&c)
+	_, err := client.CreateCustomer(&c, nil)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -32,7 +32,7 @@ func TestUpdateOrCreateContact(t *testing.T) {
 		Email: "wrongemail@abe.com",
 		Phone: "12345678",
 	}
-	err = client.UpdateOrCreateContact(c, contact)
+	err = client.UpdateOrCreateContact(c, &contact)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -53,7 +53,7 @@ func TestUpdateOrCreateContact(t *testing.T) {
 		t.Fatalf("Expected %s, got %s", contact.Name, contacts[0].Name)
 	}
 	contact.Email = "correctEmail@abe.com"
-	err = client.UpdateOrCreateContact(c, contact)
+	err = client.UpdateOrCreateContact(c, &contact)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
