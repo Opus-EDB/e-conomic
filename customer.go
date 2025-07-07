@@ -23,7 +23,7 @@ func (client *Client) GetCustomer(customer *Customer) error {
 
 func generateRandomCustomNumber() int {
 	minimumCustumerNumber := int(1e8)
-	maximumCustumerNumber := int(1e10) - 1
+	maximumCustumerNumber := int(1e9) - 1
 	return rand.Intn(maximumCustumerNumber-minimumCustumerNumber) + minimumCustumerNumber
 }
 
