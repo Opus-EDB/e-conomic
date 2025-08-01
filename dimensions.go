@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const DIMENSIONAPI_BASE = "/dimensionsapi/v4.3.0"
+const DIMENSIONAPI_BASE = "/dimensionsapi/v5.0.0"
 
 func (client *Client) CreateDimensionValue(number, key int, name string) error {
 	body := map[string]any{
@@ -25,11 +25,10 @@ func (client *Client) CreateDimensionValueIfItDoesNotExist(number, key int, name
 	err := client.callAPI(fmt.Sprintf(DIMENSIONAPI_BASE+"/values/%d/%d", number, key), http.MethodGet, nil, nil, nil)
 	if err == nil {
 		return false, nil
-	} else if err != nil {
-		// XXX TODO nicer 404 handling
-		if !strings.Contains(err.Error(), "not found") {
-			return false, err
-		}
+	}
+	// XXX TODO nicer 404 handling
+	if !strings.Contains(err.Error(), "not found") {
+		return false, err
 	}
 	return true, client.CreateDimensionValue(number, key, name)
 }
