@@ -5,10 +5,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 func (client *Client) CreateInvoice(order *Order) (invoice Invoice, err error) {
-	fmt.Printf("ORDER %+v\n", order)
 	err = client.callRestAPI("invoices/drafts", http.MethodPost, order, &invoice)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
@@ -59,7 +59,6 @@ func ValidateInvoiceClass(class string) error {
 	return nil
 }
 
-// Fails if no unique match is found on 'other references'
 func (client *Client) GetInvoicesByClassAndRef(class, ref string) ([]Invoice, error) {
 	err := ValidateInvoiceClass(class)
 	if err != nil {
@@ -77,6 +76,7 @@ func (client *Client) GetInvoicesByClassAndRef(class, ref string) ([]Invoice, er
 	return results.Collection, nil
 }
 
+// Fails if no unique match is found on 'other references'
 func (client *Client) GetOneInvoiceByClassAndRef(class, ref string) (Invoice, error) {
 	invoices, err := client.GetInvoicesByClassAndRef(class, ref)
 	if err != nil {
@@ -96,6 +96,40 @@ func (client *Client) GetDraftInvoiceByRef(ref string) (invoice Invoice, err err
 func (client *Client) GetBookedInvoiceByRef(ref string) (invoice Invoice, err error) {
 	return client.GetOneInvoiceByClassAndRef("booked", ref)
 }
+
+func (client *Client) GetDraftInvoicesByRef(ref string) (invoices []Invoice, err error) {
+	return client.GetInvoicesByClassAndRef("drafts", ref)
+}
+
+func (client *Client) GetBookedInvoicesByRef(ref string) (invoices []Invoice, err error) {
+	return client.GetInvoicesByClassAndRef("booked", ref)
+}
+
+func (client *Client) GetInvoicesByRef(ref string) ([]Invoice, error) {
+	draftInvoices, draftErr := client.GetDraftInvoicesByRef(ref)
+	if draftErr != nil && !strings.Contains(draftErr.Error(), "not found") {
+		return draftInvoices, draftErr
+	}
+
+	bookedInvoices, bookedErr := client.GetBookedInvoicesByRef(ref)
+	if bookedErr != nil && !strings.Contains(bookedErr.Error(), "not found") {
+		return bookedInvoices, bookedErr
+	}
+
+	if (draftErr == nil && bookedErr == nil) {
+		return append(draftInvoices, bookedInvoices...), nil
+	}
+	if draftErr == nil {
+		return draftInvoices, draftErr
+	}
+	if bookedErr == nil {
+		return bookedInvoices, bookedErr
+	}
+	log.Printf("ERROR: %#v", draftErr) // draftErr and bookedErr are the same here
+	draftErr = fmt.Errorf("unable to find invoice with ref %s", ref)
+	return draftInvoices, draftErr
+}
+
 
 // Finds an invoice by reference. The reference is usually your internal order number.
 // if the returned invoice has a booked invoice number not equal to zero, it is booked

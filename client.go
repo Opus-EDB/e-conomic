@@ -21,7 +21,7 @@ func (client *Client) assertClientIsConfigured() {
 	}
 }
 
-func (client *Client) callRestAPI(endpoint, method string, request, response any) error {
+func (client *Client) callRestAPI(endpoint, method string, request, response any) error { // also return status code?
 	client.assertClientIsConfigured()
 	url := fmt.Sprintf("https://restapi.e-conomic.com/%s", endpoint)
 	jsonRequest, err := json.Marshal(request)
