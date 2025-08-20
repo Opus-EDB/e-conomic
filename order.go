@@ -116,7 +116,7 @@ func (client *Client) GetInvoicesByRef(ref string) ([]Invoice, error) {
 		return bookedInvoices, bookedErr
 	}
 
-	if (draftErr == nil && bookedErr == nil) {
+	if draftErr == nil && bookedErr == nil {
 		return append(draftInvoices, bookedInvoices...), nil
 	}
 	if draftErr == nil {
@@ -129,7 +129,6 @@ func (client *Client) GetInvoicesByRef(ref string) ([]Invoice, error) {
 	draftErr = fmt.Errorf("unable to find invoice with ref %s", ref)
 	return draftInvoices, draftErr
 }
-
 
 // Finds an invoice by reference. The reference is usually your internal order number.
 // if the returned invoice has a booked invoice number not equal to zero, it is booked

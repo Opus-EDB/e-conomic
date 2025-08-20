@@ -52,8 +52,8 @@ func (client *Client) CreateCustomer(customer *Customer, contact *CustomerContac
 
 func (client *Client) SetEInvoicing(customerNumber int, disableEInvoicing bool) error {
 	body := []map[string]any{{
-		"op": "replace",
-		"path": "/eInvoicingDisabledByDefault",
+		"op":    "replace",
+		"path":  "/eInvoicingDisabledByDefault",
 		"value": disableEInvoicing,
 	}}
 	return client.callRestAPI(fmt.Sprintf("customers/%d", customerNumber), http.MethodPatch, body, nil)
