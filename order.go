@@ -16,6 +16,22 @@ func (client *Client) CreateInvoice(order *Order) (invoice Invoice, err error) {
 	return
 }
 
+func (client *Client) GetPaidInvoices(date string) ([]Invoice, error) {
+	if !ValidateDate(date) {
+		return nil, fmt.Errorf("Please use the YYYY-MM-DD date format")
+	}
+	filter := &Filter{}
+	date = url.QueryEscape(date)
+	filter.AndCondition("date", FilterOperatorGreaterThan, date)
+	results := CollectionReponse[Invoice]{}
+	err := client.callRestAPI(fmt.Sprintf("invoices/paid?filter="+filter.filterStr), http.MethodGet, nil, &results)
+	if err != nil {
+		log.Printf("ERROR getting paid invoices: %#v", err)
+		return nil, err
+	}
+	return results.Collection, nil
+}
+
 // Deletes a draft invoice, i.e. not booked
 func (client *Client) DeleteInvoice(invoiceNo int) (err error) {
 	err = client.callRestAPI(fmt.Sprintf("invoices/drafts/%d", invoiceNo), http.MethodDelete, nil, nil)
