@@ -1,14 +1,12 @@
 package economic
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 )
 
 func ValidateDate(date string) bool { // YYYY-MM-DD
 	ps := strings.Split(date, "-")
-	fmt.Printf("SPLITTED DATE %+v\n", ps)
 	if len(ps) != 3 {
 		return false
 	}
