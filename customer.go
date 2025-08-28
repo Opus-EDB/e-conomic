@@ -93,9 +93,6 @@ func getRightCustomerFromList(customers []Customer) Customer {
 }
 
 func (client *Client) GetCustomer(customer Customer) (*Customer, error) {
-	if customer.CorporateIdentificationNumber == "" && customer.VatNumber == "" {
-		return nil, fmt.Errorf("no corporate identification number or vat number provided")
-	}
 	customerInEconomic, _ := client.GetCustomerByNumber(customer.CustomerNumber)
 	fmt.Printf("customer in E-co %+v\n", customerInEconomic)
 	if customerInEconomic.CustomerNumber != 0 && customerInEconomic.CorporateIdentificationNumber != customer.CorporateIdentificationNumber {
@@ -167,7 +164,7 @@ func (client *Client) GetOrCreateCustomer(customer *Customer, contact *CustomerC
 }
 
 func (client *Client) UpdateOrCreateCustomer(customer Customer, contact CustomerContact) (int, error) {
-	fmt.Printf("Update or create customer")
+	fmt.Println("Update or create customer")
 	customerInEconomic, err := client.GetOrCreateCustomer(&customer, &contact, 1)
 	if err != nil {
 		return 0, err
