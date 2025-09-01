@@ -122,9 +122,6 @@ const MAX_NUMBER_CREATE_CUSTOMER_ATTEMPTS = 10
 // customer does not exist, it creates a new customer in economic using the
 // provided.  `customer` is read and modified in-place.
 func (client *Client) GetOrCreateCustomer(customer *Customer, contact *CustomerContact, count int) (*Customer, error) {
-	if customer.CorporateIdentificationNumber == "" && customer.VatNumber == "" {
-		return nil, fmt.Errorf("no corporate identification number or vat number provided")
-	}
 	if customer.CorporateIdentificationNumber != "" {
 		customer.VatNumber = customer.CorporateIdentificationNumber
 	}
