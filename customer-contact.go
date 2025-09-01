@@ -73,11 +73,12 @@ func (client *Client) GetCustomerContactNumber(customerNumber int) (int, error) 
 	contacts, err := client.getCustomerContacts(customerNumber)
 	if err != nil {
 		return 0, err
-	} else if len(contacts) < 1 {
-		return 0, fmt.Errorf("no customer contact found with customer number %d", customerNumber)
-	} else {
-		return contacts[0].CustomerContactNumber, nil
 	}
+	numberOfContacts := len(contacts)
+	if numberOfContacts < 1 {
+		return 0, fmt.Errorf("no customer contact found with customer number %d", customerNumber)
+	}
+	return contacts[numberOfContacts - 1].CustomerContactNumber, nil // return the last added contact (number)
 }
 
 type CustomerContactID struct {
