@@ -261,6 +261,7 @@ type Order struct {
 	References           *References       `json:"references,omitempty"`           //Customer and company references related to this order."`
 	Pdf                  *Pdf              `json:"pdf,omitempty"`                  //References a pdf representation of this order."`
 	Lines                []OrderLine       `json:"lines"`                          //An array containing the specific order lines."`
+	ExternalId           string            `json:"externalID,omitempty"`
 	Soap                 *struct {
 		OrderHandle struct {
 			ID int `json:"id"`

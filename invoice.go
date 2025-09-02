@@ -45,4 +45,5 @@ type Invoice struct {
 	Sent                           string        `json:"sent"`                           // A convenience link to see if the invoice has been sent or not.
 	Self                           string        `json:"self"`                           // The unique self reference of the booked invoice.
 	LastUpdated                    string        `json:"lastUpdated,omitempty"`
+	ExternalId                     string        `json:"externalID,omitempty"`
 }
