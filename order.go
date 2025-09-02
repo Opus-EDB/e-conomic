@@ -198,18 +198,18 @@ func (client *Client) CreditInvoiceByRef(ref string) (creditNote Invoice, err er
 		Date:     invoiceToCredit.Date,
 		Currency: invoiceToCredit.Currency,
 		Layout: Layout{
-			LayoutNumber: invoiceToCredit.LayoutNumber,
+			LayoutNumber: invoiceToCredit.Layout.LayoutNumber,
 		},
 		PaymentTerms: PaymentTerms{
 			PaymentTermsNumber: invoiceToCredit.PaymentTermsNumber,
 		},
 		Customer: CustomerID{CustomerNumber: invoiceToCredit.CustomerNumber},
 		Recipient: Recipient{
-			Name:    invoiceToCredit.RecipientName,
-			Address: invoiceToCredit.RecipientAddress,
-			City:    invoiceToCredit.RecipientCity,
-			Zip:     invoiceToCredit.RecipientZip,
-			VatZone: VatZone{VatZoneNumber: invoiceToCredit.VatZoneNumber},
+			Name:    invoiceToCredit.Recipient.Name,
+			Address: invoiceToCredit.Recipient.Address,
+			City:    invoiceToCredit.Recipient.City,
+			Zip:     invoiceToCredit.Recipient.Zip,
+			VatZone: VatZone{VatZoneNumber: invoiceToCredit.Recipient.VatZone.VatZoneNumber},
 		},
 		GrossAmount: &creditGrossAmount,
 		NetAmount:   creditNetAmount,
@@ -319,6 +319,7 @@ type Notes struct {
 
 type References struct {
 	CustomerContact *CustomerContactID `json:"customerContact,omitempty"` //The customer contact is a reference to the employee at the customer to contact regarding the order."`
+	Customer        *Customer          `json:"customer,omitempty"`
 	SalesPerson     *SalesPerson       `json:"salesPerson,omitempty"`     //The primary sales person is a reference to the employee who sold the goods on the order."`
 	VendorReference *VendorReference   `json:"vendorReference,omitempty"` //A reference to any snd employee involved in the sale."`
 	Other           string             `json:"other,omitempty"`           //A text field that can be used to save any custom reference on the order."`
