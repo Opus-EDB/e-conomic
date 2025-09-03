@@ -41,6 +41,7 @@ type ItemsReponse[T any] struct {
 
 type Pagination struct {
 	FirstPage            string `json:"firstPage"`
+	NextPage             string `json:"nextPage"`
 	LastPage             string `json:"lastPage"`
 	MaxPageSizeAllowed   int    `json:"maxPageSizeAllowed"`
 	PageSize             int    `json:"pageSize"`

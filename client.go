@@ -115,3 +115,29 @@ func (client *Client) callAPI(endpoint string, method string, params url.Values,
 	log.Printf("e-conomic/OpenAPI %s %s => %d", method, endpoint, res.StatusCode)
 	return err
 }
+
+func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int) (entities []T, err error) { // generalize more by adding filter param?
+	client := tc.client
+	results := CollectionReponse[T]{}
+	filter := &Filter{}
+	filter.AndCondition("pagesize", FilterOperatorEquals, pageSize)
+	err = client.callRestAPI(fmt.Sprintf(baseUrl+"?"+filter.filterStr), http.MethodGet, nil, &results)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
+		return
+	}
+	entities = results.Collection
+	numberOfResults := results.Pagination.Results
+	numberOfPages := (numberOfResults / pageSize) + 1 // integer division (disregarding the remainder)
+	for i := range numberOfPages {
+		url := fmt.Sprintf("%s?skippages=%d&pagesize=%d", baseUrl, i, pageSize)
+		fmt.Printf("URL: %s\n", url)
+		err = client.callRestAPI(url, http.MethodGet, nil, &results)
+		if err != nil {
+			log.Printf("ERROR: %#v", err)
+			return
+		}
+		entities = append(entities, results.Collection...)
+	}
+	return
+}

@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 func (client *Client) CreateInvoice(order *Order) (invoice Invoice, err error) {
@@ -96,7 +95,7 @@ func (client *Client) GetInvoicesByClassAndRef(class, ref string) ([]Invoice, er
 func (client *Client) GetOneInvoiceByClassAndRef(class, ref string) (Invoice, error) {
 	invoices, err := client.GetInvoicesByClassAndRef(class, ref)
 	if err != nil {
-		return Invoice{}, nil
+		return Invoice{}, err
 	}
 	if len(invoices) != 1 {
 		log.Printf("ERROR invalid number of invoices %#v", invoices)
@@ -123,27 +122,16 @@ func (client *Client) GetBookedInvoicesByRef(ref string) (invoices []Invoice, er
 
 func (client *Client) GetInvoicesByRef(ref string) ([]Invoice, error) {
 	draftInvoices, draftErr := client.GetDraftInvoicesByRef(ref)
-	if draftErr != nil && !strings.Contains(draftErr.Error(), "not found") {
+	if draftErr != nil {
 		return draftInvoices, draftErr
 	}
 
 	bookedInvoices, bookedErr := client.GetBookedInvoicesByRef(ref)
-	if bookedErr != nil && !strings.Contains(bookedErr.Error(), "not found") {
+	if bookedErr != nil {
 		return bookedInvoices, bookedErr
 	}
 
-	if draftErr == nil && bookedErr == nil {
-		return append(draftInvoices, bookedInvoices...), nil
-	}
-	if draftErr == nil {
-		return draftInvoices, draftErr
-	}
-	if bookedErr == nil {
-		return bookedInvoices, bookedErr
-	}
-	log.Printf("ERROR: %#v", draftErr) // draftErr and bookedErr are the same here
-	draftErr = fmt.Errorf("unable to find invoice with ref %s", ref)
-	return draftInvoices, draftErr
+	return append(draftInvoices, bookedInvoices...), nil
 }
 
 // Finds an invoice by reference. The reference is usually your internal order number.
@@ -172,15 +160,21 @@ func (client *Client) BookInvoice(invoiceNo int) (invoice Invoice, err error) {
 	return
 }
 
-func (client *Client) GetBookedInvoices() (invoices []Invoice, err error) {
-	results := CollectionReponse[Invoice]{}
-	err = client.callRestAPI("invoices/booked", http.MethodGet, nil, &results)
-	if err != nil {
-		log.Printf("ERROR: %#v", err)
-		return
-	}
-	invoices = results.Collection
-	return
+type TypedClient[T any] struct {
+	client     *Client
+	entityType T
+}
+
+func (client *Client) GetBookedInvoices(pagesize int) (invoices []Invoice, err error) {
+	baseUrl := "invoices/booked"
+	tc := &TypedClient[Invoice]{client: client}
+	return tc.getEntities(baseUrl, pagesize)
+}
+
+func (client *Client) GetDraftInvoices(pagesize int) (invoices []Invoice, err error) {
+	baseUrl := "invoices/drafts"
+	tc := &TypedClient[Invoice]{client: client}
+	return tc.getEntities(baseUrl, pagesize)
 }
 
 // Creates a credit note based on a booked invoice with a unique reference (usually your internal order number)
