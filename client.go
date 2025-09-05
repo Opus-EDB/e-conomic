@@ -129,15 +129,17 @@ func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int) (entities []
 	entities = results.Collection
 	numberOfResults := results.Pagination.Results
 	numberOfPages := (numberOfResults / pageSize) + 1 // integer division (disregarding the remainder)
-	for i := range numberOfPages {
-		url := fmt.Sprintf("%s?skippages=%d&pagesize=%d", baseUrl, i, pageSize)
-		fmt.Printf("URL: %s\n", url)
-		err = client.callRestAPI(url, http.MethodGet, nil, &results)
-		if err != nil {
-			log.Printf("ERROR: %#v", err)
-			return
+	if numberOfPages > 1 {
+		for i := 1; i < numberOfPages; i++ {
+			url := fmt.Sprintf("%s?skippages=%d&pagesize=%d", baseUrl, i, pageSize)
+			fmt.Printf("URL: %s\n", url)
+			err = client.callRestAPI(url, http.MethodGet, nil, &results)
+			if err != nil {
+				log.Printf("ERROR: %#v", err)
+				return
+			}
+			entities = append(entities, results.Collection...)
 		}
-		entities = append(entities, results.Collection...)
 	}
 	return
 }
