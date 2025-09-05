@@ -119,9 +119,7 @@ func (client *Client) callAPI(endpoint string, method string, params url.Values,
 func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int) (entities []T, err error) { // generalize more by adding filter param?
 	client := tc.client
 	results := CollectionReponse[T]{}
-	filter := &Filter{}
-	filter.AndCondition("pagesize", FilterOperatorEquals, pageSize)
-	err = client.callRestAPI(fmt.Sprintf(baseUrl+"?"+filter.filterStr), http.MethodGet, nil, &results)
+	err = client.callRestAPI(fmt.Sprintf(baseUrl+"?pagesize=%d", pageSize), http.MethodGet, nil, &results)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 		return
