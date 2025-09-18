@@ -6,13 +6,23 @@ import (
 	"net/http"
 )
 
+func getCustomerContactsBaseUrl(customerNumber int) string {
+	return fmt.Sprintf("customers/%d/contacts", customerNumber)
+}
+
 func (client *Client) getCustomerContacts(customerNumber int) ([]CustomerContact, error) {
 	cc := CollectionReponse[CustomerContact]{}
-	err := client.callRestAPI(fmt.Sprintf("customers/%d/contacts", customerNumber), http.MethodGet, nil, &cc)
+	err := client.callRestAPI(getCustomerContactsBaseUrl(customerNumber), http.MethodGet, nil, &cc)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
 	return cc.Collection, err
+}
+
+func (client *Client) getAllCustomerContacts(customerNumber int) (contacts []CustomerContact, err error) {
+	tc := &TypedClient[CustomerContact]{client: client}
+	contacts, err = tc.getEntities(getCustomerContactsBaseUrl(customerNumber), DEFAULT_PAGE_SIZE)
+	return
 }
 
 func (c *Customer) ID() int {
@@ -53,16 +63,16 @@ func (client *Client) UpdateOrCreateContact(customer Customer, contact *Customer
 			return nil
 		}
 	}
-	_, err = client.createCustomerContact(customer.CustomerNumber, *contact)
+	_, err = client.CreateCustomerContact(customer.CustomerNumber, *contact)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
 	return err
 }
 
-func (client *Client) createCustomerContact(customerNumber int, contact CustomerContact) (CustomerContact, error) {
+func (client *Client) CreateCustomerContact(customerNumber int, contact CustomerContact) (CustomerContact, error) {
 	var createdContact CustomerContact
-	err := client.callRestAPI(fmt.Sprintf("customers/%d/contacts", customerNumber), http.MethodPost, contact, &createdContact)
+	err := client.callRestAPI(getCustomerContactsBaseUrl(customerNumber), http.MethodPost, contact, &createdContact)
 	if err != nil {
 		return createdContact, err
 	}
@@ -70,15 +80,24 @@ func (client *Client) createCustomerContact(customerNumber int, contact Customer
 }
 
 func (client *Client) GetCustomerContactNumber(customerNumber int) (int, error) {
-	contacts, err := client.getCustomerContacts(customerNumber)
+	contact, err := client.GetLastAddedCustomerContact(customerNumber)
 	if err != nil {
 		return 0, err
 	}
+	return contact.CustomerContactNumber, nil
+}
+
+func (client *Client) GetLastAddedCustomerContact(customerNumber int) (CustomerContact, error) {
+	var contact CustomerContact
+	contacts, err := client.getAllCustomerContacts(customerNumber)
+	if err != nil {
+		return contact, err
+	}
 	numberOfContacts := len(contacts)
 	if numberOfContacts < 1 {
-		return 0, fmt.Errorf("no customer contact found with customer number %d", customerNumber)
+		return contact, fmt.Errorf("no customer contact found with customer number %d", customerNumber)
 	}
-	return contacts[numberOfContacts-1].CustomerContactNumber, nil // return the last added contact (number)
+	return contacts[numberOfContacts-1], nil
 }
 
 type CustomerContactID struct {

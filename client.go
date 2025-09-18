@@ -21,6 +21,8 @@ func (client *Client) assertClientIsConfigured() {
 	}
 }
 
+const DEFAULT_PAGE_SIZE = 50
+
 func (client *Client) callRestAPI(endpoint, method string, request, response any) error { // also return status code?
 	client.assertClientIsConfigured()
 	url := fmt.Sprintf("https://restapi.e-conomic.com/%s", endpoint)
@@ -141,3 +143,5 @@ func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int) (entities []
 	}
 	return
 }
+
+// function to get the last entity (e.g. customer contact)?
