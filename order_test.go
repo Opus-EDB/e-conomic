@@ -172,7 +172,7 @@ func TestGetInvoice(t *testing.T) {
 
 func TestGetBooked(t *testing.T) {
 	client := getTestClient()
-	invoices, err := client.GetBookedInvoices()
+	invoices, err := client.GetBookedInvoices(20)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
