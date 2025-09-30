@@ -10,15 +10,6 @@ func getCustomerContactsBaseUrl(customerNumber int) string {
 	return fmt.Sprintf("customers/%d/contacts", customerNumber)
 }
 
-func (client *Client) getCustomerContacts(customerNumber int) ([]CustomerContact, error) {
-	cc := CollectionReponse[CustomerContact]{}
-	err := client.callRestAPI(getCustomerContactsBaseUrl(customerNumber), http.MethodGet, nil, &cc)
-	if err != nil {
-		log.Printf("Error: %s", err)
-	}
-	return cc.Collection, err
-}
-
 func (client *Client) getAllCustomerContacts(customerNumber int) (contacts []CustomerContact, err error) {
 	tc := &TypedClient[CustomerContact]{client: client}
 	contacts, err = tc.getEntities(getCustomerContactsBaseUrl(customerNumber), DEFAULT_PAGE_SIZE)
@@ -33,6 +24,31 @@ func (c *Customer) SetID(id int) {
 	c.CustomerNumber = id
 }
 
+func (client *Client) GetContactByEmail(customerNumber int, email string) (*CustomerContact, error) {
+	contacts, err := client.getAllCustomerContacts(customerNumber)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		return nil, err
+	}
+	if len(contacts) == 0 {
+		return nil, fmt.Errorf("No contact found for customer %d\n", customerNumber) // the error messages in this method get parsed, so don't change them
+	}
+	for _, c := range contacts {
+		if c.Email == email {
+			return &c, nil
+		}
+	}
+	return nil, fmt.Errorf("No contact found for customer %d with e-mail %s\n", customerNumber, email)
+}
+
+func (client *Client) GetContactNumberByEmail(customerNumber int, email string) (int, error) {
+	contact, err := client.GetContactByEmail(customerNumber, email)
+	if err != nil {
+		return 0, err
+	}
+	return contact.CustomerContactNumber, nil
+}
+
 func (client *Client) UpdateOrCreateContact(customer Customer, contact *CustomerContact) error {
 	var customerInEconomic *Customer
 	fmt.Println("Update or create contact")
@@ -45,7 +61,7 @@ func (client *Client) UpdateOrCreateContact(customer Customer, contact *Customer
 	if contact == nil {
 		return nil
 	}
-	contacts, err := client.getCustomerContacts(customer.CustomerNumber)
+	contacts, err := client.getAllCustomerContacts(customer.CustomerNumber)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		return err

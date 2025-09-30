@@ -36,7 +36,7 @@ func TestUpdateOrCreateContact(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	contacts, err := client.getCustomerContacts(c.CustomerNumber)
+	contacts, err := client.getAllCustomerContacts(c.CustomerNumber)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
@@ -57,7 +57,7 @@ func TestUpdateOrCreateContact(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
-	contacts, err = client.getCustomerContacts(c.CustomerNumber)
+	contacts, err = client.getAllCustomerContacts(c.CustomerNumber)
 	if err != nil {
 		t.Fatalf("Error: %s", err)
 	}
