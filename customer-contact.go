@@ -12,7 +12,7 @@ func getCustomerContactsBaseUrl(customerNumber int) string {
 
 func (client *Client) getAllCustomerContacts(customerNumber int) (contacts []CustomerContact, err error) {
 	tc := &TypedClient[CustomerContact]{client: client}
-	contacts, err = tc.getEntities(getCustomerContactsBaseUrl(customerNumber), DEFAULT_PAGE_SIZE)
+	contacts, err = tc.getEntities(getCustomerContactsBaseUrl(customerNumber), DEFAULT_PAGE_SIZE, "")
 	return
 }
 

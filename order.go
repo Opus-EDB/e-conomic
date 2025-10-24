@@ -22,13 +22,9 @@ func (client *Client) GetPaidInvoices(date string) ([]Invoice, error) {
 	filter := &Filter{}
 	date = url.QueryEscape(date)
 	filter.AndCondition("date", FilterOperatorGreaterThan, date)
-	results := CollectionReponse[Invoice]{}
-	err := client.callRestAPI(fmt.Sprintf("invoices/paid?filter="+filter.filterStr), http.MethodGet, nil, &results)
-	if err != nil {
-		log.Printf("ERROR getting paid invoices: %#v", err)
-		return nil, err
-	}
-	return results.Collection, nil
+	baseUrl := "invoices/paid"
+	tc := &TypedClient[Invoice]{client: client}
+	return tc.getEntities(baseUrl, 500, "")
 }
 
 // Deletes a draft invoice, i.e. not booked
@@ -168,13 +164,13 @@ type TypedClient[T any] struct {
 func (client *Client) GetBookedInvoices(pagesize int) (invoices []Invoice, err error) {
 	baseUrl := "invoices/booked"
 	tc := &TypedClient[Invoice]{client: client}
-	return tc.getEntities(baseUrl, pagesize)
+	return tc.getEntities(baseUrl, pagesize, "")
 }
 
 func (client *Client) GetDraftInvoices(pagesize int) (invoices []Invoice, err error) {
 	baseUrl := "invoices/drafts"
 	tc := &TypedClient[Invoice]{client: client}
-	return tc.getEntities(baseUrl, pagesize)
+	return tc.getEntities(baseUrl, pagesize, "")
 }
 
 // Creates a credit note based on a booked invoice with a unique reference (usually your internal order number)
