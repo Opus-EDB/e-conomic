@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
 func (client *Client) CreateInvoice(order *Order) (invoice Invoice, err error) {
@@ -71,20 +72,7 @@ func ValidateInvoiceClass(class string) error {
 }
 
 func (client *Client) GetInvoicesByClassAndRef(class, ref string) ([]Invoice, error) {
-	err := ValidateInvoiceClass(class)
-	if err != nil {
-		return nil, err
-	}
-	filter := &Filter{}
-	ref = url.QueryEscape(ref)
-	filter.AndCondition("references.other", FilterOperatorEquals, ref)
-	results := CollectionReponse[Invoice]{}
-	err = client.callRestAPI(fmt.Sprintf("invoices/"+class+"?filter="+filter.filterStr), http.MethodGet, nil, &results)
-	if err != nil {
-		log.Printf("ERROR: %#v", err)
-		return nil, err
-	}
-	return results.Collection, nil
+	return client.getInvoicesForClass(class, "references.other", ref)
 }
 
 // Fails if no unique match is found on 'other references'
@@ -363,12 +351,64 @@ type DepartmentalDistribution struct {
 }
 
 func (client *Client) ClassifyInvoiceByRef(ref string) ([]string, error) {
+	return client.classifyInvoiceByTypeAndNumber("ref", 0, ref)
+}
+
+func (client *Client) ClassifyInvoiceByBookedInvoiceNo(bookedInvoiceNumber int) ([]string, error) {
+	return client.classifyInvoiceByTypeAndNumber("bookedInvoice", bookedInvoiceNumber, "")
+}
+
+func (client *Client) ClassifyInvoiceByDraftInvoiceNo(draftInvoiceNumber int) ([]string, error) {
+	return client.classifyInvoiceByTypeAndNumber("draftInvoice", draftInvoiceNumber, "")
+}
+
+func (client *Client) classifyInvoiceByTypeAndNumber(invoiceType string, number int, ref string) ([]string, error) {
+	var filterType, filterValue string
+	var possibleClasses []string
+	switch invoiceType {
+	case "draftInvoice":
+		filterType = "draftInvoiceNumber"
+		filterValue = strconv.Itoa(number)
+		possibleClasses = invoiceClasses[:1] // only drafts
+
+	case "bookedInvoice":
+		filterType = "bookedInvoiceNumber"
+		filterValue = strconv.Itoa(number)
+		possibleClasses = invoiceClasses[1:]
+	default:
+		filterType = "references.other"
+		filterValue = ref
+		possibleClasses = invoiceClasses[1:]
+	}
+	filterValue = url.QueryEscape(filterValue)
 	classes := []string{}
-	for _, class := range invoiceClasses {
-		invoices, err := client.GetInvoicesByClassAndRef(class, ref)
-		if err == nil && len(invoices) > 0 {
+	for _, class := range possibleClasses {
+		invoices, err := client.getInvoicesForClass(class, filterType, filterValue)
+		if err != nil {
+			return nil, err
+		}
+		if len(invoices) > 0 {
 			classes = append(classes, class)
 		}
 	}
+
 	return classes, nil
+}
+
+func (client *Client) getInvoicesForClass(class string, filterType string, filterValue string) ([]Invoice, error) {
+	var invoices []Invoice
+	err := ValidateInvoiceClass(class)
+	if err != nil {
+		return nil, err
+	}
+	filter := &Filter{}
+	filter.AndCondition(filterType, FilterOperatorEquals, filterValue)
+	results := CollectionReponse[Invoice]{}
+	err = client.callRestAPI(fmt.Sprintf("invoices/"+class+"?filter="+filter.filterStr), http.MethodGet, nil, &results)
+	if err != nil {
+		log.Printf("ERROR: %#v", err)
+		return invoices, err
+	}
+
+	return results.Collection, nil
 }
