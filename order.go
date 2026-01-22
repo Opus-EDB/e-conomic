@@ -25,7 +25,7 @@ func (client *Client) GetPaidInvoices(date string) ([]Invoice, error) {
 	filter.AndCondition("date", FilterOperatorGreaterThan, date)
 	baseUrl := "invoices/paid"
 	tc := &TypedClient[Invoice]{client: client}
-	return tc.getEntities(baseUrl, 500, "")
+	return tc.getEntities(baseUrl, 500, filter.filterStr)
 }
 
 // Deletes a draft invoice, i.e. not booked
