@@ -99,6 +99,11 @@ func (client *Client) GetCustomer(customer Customer) (*Customer, error) {
 		customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
 		fmt.Printf("customers by org number %+v\n", customers)
 		if len(customers) == 0 {
+			// maybe the customer did not have a corporate identification number in E-co:
+			if customerInEconomic.CorporateIdentificationNumber == "" && strconv.Itoa(customerInEconomic.CustomerNumber) == customer.CorporateIdentificationNumber {
+				fmt.Printf("Matching by customer number, but missing corporate id number for customer in E-co %+v\n", customerInEconomic)
+				return customerInEconomic, nil
+			}
 			return nil, nil
 		}
 		customer.CustomerNumber = getRightCustomerFromList(customers).CustomerNumber
