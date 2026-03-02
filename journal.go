@@ -24,15 +24,18 @@ type JournalEntry struct {
 	IsCredit            bool        `json:"isCredit,omitempty"`
 }
 
+func truncateEntryText(j *JournalEntry) {
+	if len(j.Text) > 255 {
+		j.Text = j.Text[:255]
+	}
+}
+
 // Create a draft of a cash payment.
 // If the entry is created successfully, the EntryNumber field will be set.
 // Set IsCredit to true if the amount should be negative.
 func (client *Client) CreateJournalEntry(j *JournalEntry) error {
 	resp := map[string]any{}
-	maxAllowedItemTextLength := 255
-	if len(j.Text) > maxAllowedItemTextLength {
-		j.Text = j.Text[:maxAllowedItemTextLength]
-	}
+	truncateEntryText(j)
 	err := client.callAPI("/journalsapi/v6.0.0/draft-entries", http.MethodPost, nil, j, &resp)
 	if err == nil {
 		entryNumber := resp["entryNumber"]
@@ -112,6 +115,27 @@ func (client *Client) GetBookedCashPaymentsById(id int) ([]JournalEntry, error) 
 		return jes, fmt.Errorf("no payment with id %d", id)
 	}
 	return resp.Items, err
+}
+
+// GetDraftEntriesByVoucherNumber returns all draft entries with the given voucher number.
+// Returns an empty slice and no error if none are found.
+func (client *Client) GetDraftEntriesByVoucherNumber(voucherNumber int) ([]JournalEntry, error) {
+	resp := ItemsReponse[JournalEntry]{}
+	params := url.Values{
+		"filter": {fmt.Sprintf("voucherNumber$eq:%d", voucherNumber)},
+	}
+	err := client.callAPI("/journalsapi/v6.0.0/draft-entries", http.MethodGet, params, nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Items, nil
+}
+
+// UpdateJournalEntry updates an existing draft entry using PUT.
+// The entry's EntryNumber must be set.
+func (client *Client) UpdateJournalEntry(j *JournalEntry) error {
+	truncateEntryText(j)
+	return client.callAPI(fmt.Sprintf("/journalsapi/v6.0.0/draft-entries/%d", j.EntryNumber), http.MethodPut, nil, j, nil)
 }
 
 func (client *Client) BookAllEntries(journalNumber int) error {
