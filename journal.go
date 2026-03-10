@@ -25,8 +25,10 @@ type JournalEntry struct {
 }
 
 func truncateEntryText(j *JournalEntry) {
-	if len(j.Text) > 255 {
-		j.Text = j.Text[:255]
+	const maxRunes = 240
+	runes := []rune(j.Text)
+	if len(runes) > maxRunes {
+		j.Text = string(runes[:maxRunes])
 	}
 }
 
