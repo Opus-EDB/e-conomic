@@ -135,8 +135,24 @@ func (client *Client) GetInvoiceByRef(ref string) (invoice Invoice, err error) {
 	return
 }
 
-func (client *Client) BookInvoice(invoiceNo int) (invoice Invoice, err error) {
-	body := map[string]map[string]int{"draftInvoice": {"draftInvoiceNumber": invoiceNo}}
+type BookInvoiceOptions struct {
+	SendBy         string `json:"sendBy,omitempty"`
+	BookWithNumber *int   `json:"bookWithNumber,omitempty"`
+}
+
+func (client *Client) BookInvoice(invoiceNo int, options ...BookInvoiceOptions) (invoice Invoice, err error) {
+	type bookBody struct {
+		DraftInvoice struct {
+			DraftInvoiceNumber int `json:"draftInvoiceNumber"`
+		} `json:"draftInvoice"`
+		BookInvoiceOptions
+	}
+	body := bookBody{}
+	body.DraftInvoice.DraftInvoiceNumber = invoiceNo
+	body.SendBy = "Email"
+	if len(options) > 0 {
+		body.BookInvoiceOptions = options[0]
+	}
 	err = client.callRestAPI("invoices/booked", http.MethodPost, body, &invoice)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
