@@ -10,6 +10,15 @@ import (
 	"net/url"
 )
 
+type APIError struct {
+	StatusCode int
+	body       string
+}
+
+func (e *APIError) Error() string {
+	return e.body
+}
+
 type Client struct {
 	AgreementGrant string `json:"agreement_grant"`
 	AppSecretToken string `json:"app_secret"`
@@ -56,7 +65,10 @@ func (client *Client) callRestAPI(endpoint, method string, request, response any
 	log.Printf("e-conomic/REST %s %s => %d", method, endpoint, res.StatusCode)
 	if res.StatusCode >= 400 {
 		log.Printf("error calling e-conomic (%s %s) err: %s", url, method, body.String())
-		return fmt.Errorf("error calling e-conomic (%s %s) err: %s", url, method, body.String())
+		return &APIError{
+			StatusCode: res.StatusCode,
+			body:       fmt.Sprintf("error calling e-conomic (%s %s) err: %s", url, method, body.String()),
+		}
 	}
 	if response == nil {
 		return nil

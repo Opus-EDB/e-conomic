@@ -1,6 +1,7 @@
 package economic
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -28,13 +29,19 @@ func (client *Client) GetPaidInvoices(date string) ([]Invoice, error) {
 	return tc.getEntities(baseUrl, 500, filter.filterStr)
 }
 
-// Deletes a draft invoice, i.e. not booked
-func (client *Client) DeleteInvoice(invoiceNo int) (err error) {
-	err = client.callRestAPI(fmt.Sprintf("invoices/drafts/%d", invoiceNo), http.MethodDelete, nil, nil)
+// Deletes a draft invoice, i.e. not booked. A 404 response is treated as
+// success since the goal (draft no longer exists) is already achieved.
+func (client *Client) DeleteInvoice(invoiceNo int) error {
+	err := client.callRestAPI(fmt.Sprintf("invoices/drafts/%d", invoiceNo), http.MethodDelete, nil, nil)
+	var apiErr *APIError
+	if errors.As(err, &apiErr) && apiErr.StatusCode == 404 {
+		log.Printf("DeleteInvoice: draft %d already gone (404), treating as success", invoiceNo)
+		return nil
+	}
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 	}
-	return
+	return err
 }
 
 func (client *Client) GetDraftInvoice(invoiceNo int) (invoice Invoice, err error) {
