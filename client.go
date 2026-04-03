@@ -32,7 +32,7 @@ func (client *Client) assertClientIsConfigured() {
 
 const DEFAULT_PAGE_SIZE = 50
 
-func (client *Client) callRestAPI(endpoint, method string, request, response any) error { // also return status code?
+func (client *Client) callRestAPI(endpoint, method string, request, response any) error {
 	client.assertClientIsConfigured()
 	url := fmt.Sprintf("https://restapi.e-conomic.com/%s", endpoint)
 	jsonRequest, err := json.Marshal(request)
