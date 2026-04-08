@@ -8,8 +8,8 @@ import (
 	"net/url"
 )
 
-journalApiVersion := "v14.0.1"
-journalDraftEntryBaseUrl := fmt.Sprintf("/journalsapi/%s/draft-entries", journalApiVersion)
+const journalApiVersion = "v14.0.1"
+const journalDraftEntryBaseUrl = "/journalsapi/" + journalApiVersion + "/draft-entries"
 
 type JournalEntry struct {
 	EntryTypeNumber     int         `json:"entryTypeNumber,omitempty"`
