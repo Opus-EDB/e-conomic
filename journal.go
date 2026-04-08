@@ -8,6 +8,9 @@ import (
 	"net/url"
 )
 
+journalApiVersion := "v14.0.1"
+journalDraftEntryBaseUrl := fmt.Sprintf("/journalsapi/%s/draft-entries", journalApiVersion)
+
 type JournalEntry struct {
 	EntryTypeNumber     int         `json:"entryTypeNumber,omitempty"`
 	VoucherNumber       int         `json:"voucherNumber"`
@@ -38,7 +41,7 @@ func truncateEntryText(j *JournalEntry) {
 func (client *Client) CreateJournalEntry(j *JournalEntry) error {
 	resp := map[string]any{}
 	truncateEntryText(j)
-	err := client.callAPI("/journalsapi/v6.0.0/draft-entries", http.MethodPost, nil, j, &resp)
+	err := client.callAPI(journalDraftEntryBaseUrl, http.MethodPost, nil, j, &resp)
 	if err == nil {
 		entryNumber := resp["entryNumber"]
 		log.Printf("entryNumber: %#v", entryNumber)
@@ -50,12 +53,12 @@ func (client *Client) CreateJournalEntry(j *JournalEntry) error {
 }
 
 func (client *Client) DeleteJournalEntry(j *JournalEntry) error {
-	return client.callAPI(fmt.Sprintf("/journalsapi/v6.0.0/draft-entries/%d", j.EntryNumber), http.MethodDelete, nil, nil, nil)
+	return client.callAPI(fmt.Sprintf("%s/%d", journalDraftEntryBaseUrl, j.EntryNumber), http.MethodDelete, nil, nil, nil)
 }
 
 func (client *Client) GetDraftEntriesCount() (int, error) {
 	var count int
-	err := client.callAPI("/journalsapi/v6.0.0/draft-entries/count", http.MethodGet, nil, nil, &count)
+	err := client.callAPI(journalDraftEntryBaseUrl+"/count", http.MethodGet, nil, nil, &count)
 	if err != nil {
 		return 0, err
 	}
@@ -77,7 +80,7 @@ func (client *Client) GetCashPaymentsById(id int) ([]JournalEntry, error) {
 	params := url.Values{
 		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
 	}
-	err := client.callAPI("/journalsapi/v6.0.0/draft-entries", http.MethodGet, params, nil, &resp)
+	err := client.callAPI(journalDraftEntryBaseUrl, http.MethodGet, params, nil, &resp)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
@@ -126,7 +129,7 @@ func (client *Client) GetDraftEntriesByVoucherNumber(voucherNumber int) ([]Journ
 	params := url.Values{
 		"filter": {fmt.Sprintf("voucherNumber$eq:%d", voucherNumber)},
 	}
-	err := client.callAPI("/journalsapi/v6.0.0/draft-entries", http.MethodGet, params, nil, &resp)
+	err := client.callAPI(journalDraftEntryBaseUrl, http.MethodGet, params, nil, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +140,7 @@ func (client *Client) GetDraftEntriesByVoucherNumber(voucherNumber int) ([]Journ
 // The entry's EntryNumber must be set.
 func (client *Client) UpdateJournalEntry(j *JournalEntry) error {
 	truncateEntryText(j)
-	return client.callAPI(fmt.Sprintf("/journalsapi/v6.0.0/draft-entries/%d", j.EntryNumber), http.MethodPut, nil, j, nil)
+	return client.callAPI(fmt.Sprintf("%s/%d", journalDraftEntryBaseUrl, j.EntryNumber), http.MethodPut, nil, j, nil)
 }
 
 func (client *Client) BookAllEntries(journalNumber int) error {
@@ -149,7 +152,7 @@ func (client *Client) GetJournalBalanceById(id int) (float64, error) {
 	params := url.Values{
 		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
 	}
-	err := client.callAPI("/journalsapi/v6.0.0/draft-entries", http.MethodGet, params, nil, &resp)
+	err := client.callAPI(journalDraftEntryBaseUrl, http.MethodGet, params, nil, &resp)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
