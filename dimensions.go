@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const DIMENSIONAPI_BASE = "/dimensionsapi/v5.0.0"
+const DIMENSIONAPI_BASE = "/dimensionsapi/v5.3.0"
 
 type dimension struct {
 	Active          bool   `json:"active"`

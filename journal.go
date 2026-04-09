@@ -110,7 +110,7 @@ func (client *Client) GetBookedCashPaymentsById(id int) ([]JournalEntry, error) 
 	params := url.Values{
 		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
 	}
-	err := client.callAPI("/bookedEntriesapi/v2.0.0/booked-entries", http.MethodGet, params, nil, &resp)
+	err := client.callAPI("/bookedEntriesapi/v4.0.0/booked-entries", http.MethodGet, params, nil, &resp)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
