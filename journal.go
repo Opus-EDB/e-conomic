@@ -12,19 +12,18 @@ const journalApiVersion = "v14.0.1"
 const journalDraftEntryBaseUrl = "/journalsapi/" + journalApiVersion + "/draft-entries"
 
 type JournalEntry struct {
-	EntryTypeNumber     int         `json:"entryTypeNumber,omitempty"`
+	EntryTypeNumber     int         `json:"entryTypeNumber"`
 	VoucherNumber       int         `json:"voucherNumber"`
 	JournalNumber       int         `json:"journalNumber"`
 	Date                string      `json:"date"`
 	Amount              json.Number `json:"amount"`
 	Currency            string      `json:"currency"`
 	EntryNumber         int         `json:"entryNumber,omitempty"`
-	AccountNumber       int         `json:"accountNumber,omitempty"`
+	AccountNumber       int         `json:"accountNumber"`
 	ContraAccountNumber int         `json:"contraAccountNumber,omitempty"`
 	Text                string      `json:"text,omitempty"`
 	VatCode             string      `json:"vatCode,omitempty"`
 	ContraVatCode       string      `json:"contraVatCode,omitempty"`
-	IsCredit            bool        `json:"isCredit,omitempty"`
 }
 
 func truncateEntryText(j *JournalEntry) {
@@ -37,7 +36,7 @@ func truncateEntryText(j *JournalEntry) {
 
 // Create a draft of a cash payment.
 // If the entry is created successfully, the EntryNumber field will be set.
-// Set IsCredit to true if the amount should be negative.
+// Credits use negative amounts.
 func (client *Client) CreateJournalEntry(j *JournalEntry) error {
 	resp := map[string]any{}
 	truncateEntryText(j)
@@ -95,8 +94,7 @@ func (client *Client) GetCashPaymentsById(id int) ([]JournalEntry, error) {
 // - VoucherNumber: The voucher number of the payment.
 // - Amount: The amount of the payment.
 //
-// If you need to credit the payment fill in the remaining fields and set IsCredit to true.
-// The amount will always be negative when IsCredit=true.
+// If you need to credit the payment fill in the remaining fields and use a negative amount.
 func (client *Client) GetBookedCashPaymentById(id int) (JournalEntry, error) {
 	je := JournalEntry{}
 	jes, err := client.GetBookedCashPaymentsById(id)
@@ -137,14 +135,13 @@ func (client *Client) GetDraftEntriesByVoucherNumber(voucherNumber int) ([]Journ
 }
 
 // UpdateJournalEntry updates an existing draft entry using PUT.
-// The entry's EntryNumber must be set.
 func (client *Client) UpdateJournalEntry(j *JournalEntry) error {
 	truncateEntryText(j)
-	return client.callAPI(fmt.Sprintf("%s/%d", journalDraftEntryBaseUrl, j.EntryNumber), http.MethodPut, nil, j, nil)
+	return client.callAPI(journalDraftEntryBaseUrl, http.MethodPut, nil, j, nil)
 }
 
 func (client *Client) BookAllEntries(journalNumber int) error {
-	return client.callAPI(fmt.Sprintf("/journalsapi/v6.0.0/journals/%d/book", journalNumber), http.MethodPost, nil, nil, nil)
+	return client.callAPI(fmt.Sprintf("/journalsapi/%s/journals/%d/book", journalApiVersion, journalNumber), http.MethodPost, nil, nil, nil)
 }
 
 func (client *Client) GetJournalBalanceById(id int) (float64, error) {
