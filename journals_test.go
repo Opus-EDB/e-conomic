@@ -79,13 +79,12 @@ func TestCreditBookedCashPayment(t *testing.T) {
 		VoucherNumber:       50160,
 		JournalNumber:       6,
 		Date:                "2024-09-26",
-		Amount:              je.Amount,
+		Amount:              json.Number("-" + je.Amount.String()),
 		Currency:            "DKK",
 		AccountNumber:       4610,
 		ContraAccountNumber: 4630,
 		ContraVatCode:       "U25",
 		VatCode:             "U25",
-		IsCredit:            true,
 	}
 	err = client.CreateJournalEntry(j)
 
