@@ -134,7 +134,7 @@ func (client *Client) GetDraftEntriesByVoucherNumber(voucherNumber int) ([]Journ
 	return resp.Items, nil
 }
 
-// UpdateJournalEntry updates an existing draft entry using PUT.
+// UpdateJournalEntry updates an existing draft entry using PUT. Needs an entryNumber (returned from GetDraftEntriesByVoucherNumber).
 func (client *Client) UpdateJournalEntry(j *JournalEntry) error {
 	truncateEntryText(j)
 	return client.callAPI(journalDraftEntryBaseUrl, http.MethodPut, nil, j, nil)
