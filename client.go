@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 )
 
 type APIError struct {
@@ -30,7 +32,29 @@ func (client *Client) assertClientIsConfigured() {
 	}
 }
 
-const DEFAULT_PAGE_SIZE = 50
+const (
+	DEFAULT_PAGE_SIZE = 50
+	maxRetries        = 4
+	baseDelay         = time.Second
+)
+
+func isRetryableStatus(code int) bool {
+	return code == http.StatusTooManyRequests || code >= 500
+}
+
+// backoffDelay returns how long to wait before the next attempt. For 429
+// responses it respects the Retry-After header when present; otherwise it
+// uses plain exponential backoff (1s, 2s, 4s, 8s).
+func backoffDelay(attempt int, res *http.Response) time.Duration {
+	if res != nil && res.StatusCode == http.StatusTooManyRequests {
+		if s := res.Header.Get("Retry-After"); s != "" {
+			if secs, err := strconv.Atoi(s); err == nil {
+				return time.Duration(secs) * time.Second
+			}
+		}
+	}
+	return baseDelay * (1 << attempt) // left bit shift
+}
 
 func (client *Client) callRestAPI(endpoint, method string, request, response any) error {
 	client.assertClientIsConfigured()
@@ -43,41 +67,65 @@ func (client *Client) callRestAPI(endpoint, method string, request, response any
 	if request == nil {
 		jsonRequest = []byte{}
 	}
-	req, err := http.NewRequest(method, url, bytes.NewReader(jsonRequest))
-	if err != nil {
-		return err
-	}
-	grant := client.AgreementGrant
-	secret := client.AppSecretToken
-	req.Header.Set("X-AppSecretToken", secret)
-	req.Header.Set("X-AgreementGrantToken", grant)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	httpClient := http.DefaultClient
-	res, err := httpClient.Do(req)
-	if err != nil {
-		log.Printf("error in calling e-conomic (%s %s) err: %s", url, method, err)
-		return err
-	}
-	defer res.Body.Close()
-	body := new(bytes.Buffer)
-	body.ReadFrom(res.Body)
-	log.Printf("e-conomic/REST %s %s => %d", method, endpoint, res.StatusCode)
-	if res.StatusCode >= 400 {
-		log.Printf("error calling e-conomic (%s %s) err: %s", url, method, body.String())
-		return &APIError{
-			StatusCode: res.StatusCode,
-			body:       fmt.Sprintf("error calling e-conomic (%s %s) err: %s", url, method, body.String()),
+
+	var lastErr error
+	var lastRes *http.Response
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			delay := backoffDelay(attempt-1, lastRes)
+			log.Printf("retrying e-conomic/REST %s %s (attempt %d/%d) after %s", method, endpoint, attempt, maxRetries, delay)
+			time.Sleep(delay)
+			lastRes = nil
 		}
+
+		req, err := http.NewRequest(method, url, bytes.NewReader(jsonRequest))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("X-AppSecretToken", client.AppSecretToken)
+		req.Header.Set("X-AgreementGrantToken", client.AgreementGrant)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Printf("error in calling e-conomic (%s %s) err: %s", url, method, err)
+			lastErr = err
+			continue
+		}
+
+		body := new(bytes.Buffer)
+		body.ReadFrom(res.Body)
+		res.Body.Close()
+		log.Printf("e-conomic/REST %s %s => %d", method, endpoint, res.StatusCode)
+
+		if isRetryableStatus(res.StatusCode) {
+			lastErr = &APIError{
+				StatusCode: res.StatusCode,
+				body:       fmt.Sprintf("error calling e-conomic (%s %s) err: %s", url, method, body.String()),
+			}
+			log.Printf("will retry e-conomic/REST %s %s (attempt %d/%d): %s", method, endpoint, attempt+1, maxRetries, body.String())
+			lastRes = res
+			continue
+		}
+
+		if res.StatusCode >= 400 {
+			log.Printf("error calling e-conomic (%s %s) err: %s", url, method, body.String())
+			return &APIError{
+				StatusCode: res.StatusCode,
+				body:       fmt.Sprintf("error calling e-conomic (%s %s) err: %s", url, method, body.String()),
+			}
+		}
+
+		if response == nil {
+			return nil
+		}
+		return json.Unmarshal(body.Bytes(), response)
 	}
-	if response == nil {
-		return nil
-	}
-	err = json.Unmarshal(body.Bytes(), response)
-	return err
+	return lastErr
 }
 
-func (client *Client) callAPI(endpoint string, method string, params url.Values, body interface{}, response interface{}) error {
+func (client *Client) callAPI(endpoint string, method string, params url.Values, body any, response any) error {
 	if params == nil {
 		params = url.Values{}
 	}
@@ -87,47 +135,80 @@ func (client *Client) callAPI(endpoint string, method string, params url.Values,
 	if grant == "" || secret == "" {
 		panic("missing agreement grant or app secret")
 	}
-	req := &http.Request{
-		Method: method,
-		URL: &url.URL{
-			Path:     endpoint,
-			RawQuery: params.Encode(),
-			Scheme:   "https",
-			Host:     "apis.e-conomic.com",
-		},
-		Header: make(http.Header),
-	}
-	req.Header.Set("X-AppSecretToken", secret)
-	req.Header.Set("X-AgreementGrantToken", grant)
-	req.Header.Set("Accept", "application/json")
+
+	var jsonBody []byte
 	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-		jsonBody, err := json.Marshal(body)
+		var err error
+		jsonBody, err = json.Marshal(body)
 		if err != nil {
 			log.Printf("error in marshalling request: %s", err)
 			return err
 		}
-		req.Body = io.NopCloser(bytes.NewReader(jsonBody))
 	}
-	httpClient := http.DefaultClient
-	res, err := httpClient.Do(req)
-	if err != nil {
-		log.Printf("error in calling e-conomic (%s %s) err: %s", endpoint, method, err)
+
+	reqURL := &url.URL{
+		Path:     endpoint,
+		RawQuery: params.Encode(),
+		Scheme:   "https",
+		Host:     "apis.e-conomic.com",
+	}
+
+	var lastErr error
+	var lastRes *http.Response
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			delay := backoffDelay(attempt-1, lastRes)
+			log.Printf("retrying e-conomic/OpenAPI %s %s (attempt %d/%d) after %s", method, endpoint, attempt, maxRetries, delay)
+			time.Sleep(delay)
+			lastRes = nil
+		}
+
+		req := &http.Request{
+			Method: method,
+			URL:    reqURL,
+			Header: make(http.Header),
+		}
+		req.Header.Set("X-AppSecretToken", secret)
+		req.Header.Set("X-AgreementGrantToken", grant)
+		req.Header.Set("Accept", "application/json")
+		if jsonBody != nil {
+			req.Header.Set("Content-Type", "application/json")
+			req.Body = io.NopCloser(bytes.NewReader(jsonBody))
+		}
+
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Printf("error in calling e-conomic (%s %s) err: %s", endpoint, method, err)
+			lastErr = err
+			continue
+		}
+
+		if isRetryableStatus(res.StatusCode) {
+			resBody, _ := io.ReadAll(res.Body)
+			res.Body.Close()
+			lastErr = fmt.Errorf("error in calling e-conomic (%s %s => %d) %s", method, endpoint, res.StatusCode, string(resBody))
+			log.Printf("will retry e-conomic/OpenAPI %s %s (attempt %d/%d): %s", method, endpoint, attempt+1, maxRetries, string(resBody))
+			lastRes = res
+			continue
+		}
+
+		if res.StatusCode >= 400 {
+			resBody, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				return fmt.Errorf("failed to read response body (internal error?) when calling e-conomic (%s %s => %d)", method, endpoint, res.StatusCode)
+			}
+			return fmt.Errorf("error in calling e-conomic (%s %s => %d) %s", method, endpoint, res.StatusCode, string(resBody))
+		}
+
+		if response != nil {
+			err = json.NewDecoder(res.Body).Decode(response)
+		}
+		res.Body.Close()
+		log.Printf("e-conomic/OpenAPI %s %s => %d", method, endpoint, res.StatusCode)
 		return err
 	}
-	defer res.Body.Close()
-	if res.StatusCode >= 400 {
-		body, err := io.ReadAll(res.Body)
-		if err != nil {
-			return fmt.Errorf("failed to read response body (internal error?) when calling e-conomic (%s %s => %d)", method, endpoint, res.StatusCode)
-		}
-		return fmt.Errorf("error in calling e-conomic (%s %s => %d) %s", method, endpoint, res.StatusCode, string(body))
-	}
-	if response != nil {
-		err = json.NewDecoder(res.Body).Decode(response)
-	}
-	log.Printf("e-conomic/OpenAPI %s %s => %d", method, endpoint, res.StatusCode)
-	return err
+	return lastErr
 }
 
 func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int, filter string) (entities []T, err error) {
