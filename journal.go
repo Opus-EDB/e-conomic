@@ -6,10 +6,62 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const journalApiVersion = "v14.0.1"
 const journalDraftEntryBaseUrl = "/journalsapi/" + journalApiVersion + "/draft-entries"
+const journalBaseUrl = "/journalsapi/" + journalApiVersion + "/journals"
+
+type Journal struct {
+	Number                    int    `json:"number"`
+	Name                      string `json:"name"`
+	BalancingBehavior         bool   `json:"balancingBehavior"`
+	AutoApprove               bool   `json:"autoApprove"`
+	IsStandingJournal         bool   `json:"isStandingJournal"`
+	RequireAdminApproval      bool   `json:"requireAdminApproval"`
+	LockVatCodes              bool   `json:"lockVatCodes"`
+	NextVoucherNumber         int    `json:"nextVoucherNumber"`
+	MinimumVoucherNumber      int    `json:"minimumVoucherNumber"`
+	MaximumVoucherNumber      int    `json:"maximumVoucherNumber"`
+	CustomerContraAccount     int    `json:"customerContraAccount"`
+	SupplierContraAccount     int    `json:"supplierContraAccount"`
+	CustomerPaymentText       string `json:"customerPaymentText"`
+	SupplierPaymentText       string `json:"supplierPaymentText"`
+	Priority                  int    `json:"priority"`
+	AllowPartialBooking       bool   `json:"allowPartialBooking"`
+	RequireBalancePerVoucherId bool   `json:"requireBalancePerVoucherId"`
+	RepeatText                bool   `json:"repeatText"`
+	PaymentMessageText        string `json:"paymentMessageText"`
+	DefaultDepartment         int    `json:"defaultDepartment"`
+	AllowedEntryType          int    `json:"allowedEntryType"`
+	ObjectVersion             string `json:"objectVersion"`
+}
+
+type TimeWindow struct {
+	From time.Time
+	To   time.Time
+}
+
+func YesterdayWindow() TimeWindow {
+	loc, _ := time.LoadLocation("Europe/Copenhagen")
+	yesterday := time.Now().In(loc).AddDate(0, 0, -1)
+	return TimeWindow{
+		From: time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, loc),
+		To:   time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 23, 59, 59, 0, loc),
+	}
+}
+
+func (client *Client) GetJournals(window TimeWindow) ([]Journal, error) {
+	const iso8601 = "2006-01-02T15:04:05"
+	params := url.Values{
+		"filter": {fmt.Sprintf("date$gte:%s$and:date$lte:%s",
+			window.From.Format(iso8601),
+			window.To.Format(iso8601),
+		)},
+	}
+	return getAllPaged[Journal](client, journalBaseUrl+"/paged", params)
+}
 
 type JournalEntry struct {
 	EntryTypeNumber     int         `json:"entryTypeNumber"`

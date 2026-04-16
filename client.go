@@ -238,4 +238,26 @@ func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int, filter strin
 	return
 }
 
+func getAllPaged[T any](client *Client, baseURL string, params url.Values) ([]T, error) {
+	var all []T
+	for page := 0; ; page++ {
+		p := url.Values{}
+		for k, v := range params {
+			p[k] = v
+		}
+		if page > 0 {
+			p.Set("skippages", strconv.Itoa(page))
+		}
+		resp := ItemsReponse[T]{}
+		if err := client.callAPI(baseURL, http.MethodGet, p, nil, &resp); err != nil {
+			return nil, err
+		}
+		all = append(all, resp.Items...)
+		if len(resp.Items) < resp.Pagination.PageSize || resp.Pagination.PageSize == 0 {
+			break
+		}
+	}
+	return all, nil
+}
+
 // function to get the last entity (e.g. customer contact)?
