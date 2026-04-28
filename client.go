@@ -211,6 +211,7 @@ func (client *Client) callAPI(endpoint string, method string, params url.Values,
 	return lastErr
 }
 
+// getEntities uses the REST API (callRestAPI) and CollectionReponse. Determines remaining pages from Pagination.Results in the first response.
 func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int, filter string) (entities []T, err error) {
 	client := tc.client
 	results := CollectionReponse[T]{}
@@ -238,6 +239,7 @@ func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int, filter strin
 	return
 }
 
+// getAllPaged uses the journals API (callAPI) and ItemsReponse. Detects the last page when fewer items are returned than the page size, or when the API returns no pagination metadata (PageSize == 0).
 func getAllPaged[T any](client *Client, baseURL string, params url.Values) ([]T, error) {
 	var all []T
 	for page := 0; ; page++ {
