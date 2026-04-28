@@ -27,7 +27,7 @@ func YesterdayWindow() TimeWindow {
 	}
 }
 
-func (client *Client) GetJournalEntries(windows ...TimeWindow) ([]JournalEntry, error) {
+func (client *Client) GetJournalEntries(journalNumber int, windows ...TimeWindow) ([]JournalEntry, error) {
 	window := YesterdayWindow()
 	if len(windows) > 0 {
 		window = windows[0]
@@ -36,6 +36,9 @@ func (client *Client) GetJournalEntries(windows ...TimeWindow) ([]JournalEntry, 
 		window.From.Format(time.RFC3339),
 		window.To.Format(time.RFC3339),
 	)
+	if journalNumber != 0 {
+		filter += fmt.Sprintf("$and:journalNumber$eq:%d", journalNumber)
+	}
 	params := url.Values{"filter": {filter}}
 
 	draft, err := getAllPaged[JournalEntry](client, journalDraftEntryBaseUrl+"/paged", params)
