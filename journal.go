@@ -11,32 +11,7 @@ import (
 
 const journalApiVersion = "v14.0.1"
 const journalDraftEntryBaseUrl = "/journalsapi/" + journalApiVersion + "/draft-entries"
-const journalBaseUrl = "/journalsapi/" + journalApiVersion + "/journals"
-
-type Journal struct {
-	Number                    int    `json:"number"`
-	Name                      string `json:"name"`
-	BalancingBehavior         bool   `json:"balancingBehavior"`
-	AutoApprove               bool   `json:"autoApprove"`
-	IsStandingJournal         bool   `json:"isStandingJournal"`
-	RequireAdminApproval      bool   `json:"requireAdminApproval"`
-	LockVatCodes              bool   `json:"lockVatCodes"`
-	NextVoucherNumber         int    `json:"nextVoucherNumber"`
-	MinimumVoucherNumber      int    `json:"minimumVoucherNumber"`
-	MaximumVoucherNumber      int    `json:"maximumVoucherNumber"`
-	CustomerContraAccount     int    `json:"customerContraAccount"`
-	SupplierContraAccount     int    `json:"supplierContraAccount"`
-	CustomerPaymentText       string `json:"customerPaymentText"`
-	SupplierPaymentText       string `json:"supplierPaymentText"`
-	Priority                  int    `json:"priority"`
-	AllowPartialBooking       bool   `json:"allowPartialBooking"`
-	RequireBalancePerVoucherId bool   `json:"requireBalancePerVoucherId"`
-	RepeatText                bool   `json:"repeatText"`
-	PaymentMessageText        string `json:"paymentMessageText"`
-	DefaultDepartment         int    `json:"defaultDepartment"`
-	AllowedEntryType          int    `json:"allowedEntryType"`
-	ObjectVersion             string `json:"objectVersion"`
-}
+const bookedEntriesApiBaseUrl = "/bookedEntriesapi/v4.0.0/booked-entries"
 
 type TimeWindow struct {
 	From time.Time
@@ -52,15 +27,32 @@ func YesterdayWindow() TimeWindow {
 	}
 }
 
-func (client *Client) GetJournals(window TimeWindow) ([]Journal, error) {
-	const iso8601 = "2006-01-02T15:04:05"
-	params := url.Values{
-		"filter": {fmt.Sprintf("date$gte:%s$and:date$lte:%s",
-			window.From.Format(iso8601),
-			window.To.Format(iso8601),
-		)},
+func (client *Client) GetJournalEntries(windows ...TimeWindow) ([]JournalEntry, error) {
+	window := YesterdayWindow()
+	if len(windows) > 0 {
+		window = windows[0]
 	}
-	return getAllPaged[Journal](client, journalBaseUrl+"/paged", params)
+	filter := fmt.Sprintf("date$gte:%s$and:date$lte:%s",
+		window.From.Format(time.RFC3339),
+		window.To.Format(time.RFC3339),
+	)
+	params := url.Values{"filter": {filter}}
+
+	draft, err := getAllPaged[JournalEntry](client, journalDraftEntryBaseUrl+"/paged", params)
+	if err != nil {
+		return nil, err
+	}
+	if len(draft) > 0 {
+		log.Printf("GetJournalEntries: %d draft entries found", len(draft))
+	}
+	booked, err := getAllPaged[JournalEntry](client, bookedEntriesApiBaseUrl+"/paged", params)
+	if err != nil {
+		return nil, err
+	}
+	if len(booked) > 0 {
+		log.Printf("GetJournalEntries: %d booked entries found", len(booked))
+	}
+	return append(draft, booked...), nil
 }
 
 type JournalEntry struct {
@@ -162,7 +154,7 @@ func (client *Client) GetBookedCashPaymentsById(id int) ([]JournalEntry, error) 
 	params := url.Values{
 		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
 	}
-	err := client.callAPI("/bookedEntriesapi/v4.0.0/booked-entries", http.MethodGet, params, nil, &resp)
+	err := client.callAPI(bookedEntriesApiBaseUrl, http.MethodGet, params, nil, &resp)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}
