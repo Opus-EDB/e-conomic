@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+const invoicePageSize = 500
+
 func (client *Client) CreateInvoice(order *Order) (invoice Invoice, err error) {
 	err = client.callRestAPI("invoices/drafts", http.MethodPost, order, &invoice)
 	if err != nil {
@@ -26,7 +28,7 @@ func (client *Client) GetPaidInvoices(date string) ([]Invoice, error) {
 	filter.AndCondition("date", FilterOperatorGreaterThan, date)
 	baseUrl := "invoices/paid"
 	tc := &TypedClient[Invoice]{client: client}
-	return tc.getEntities(baseUrl, 500, filter.filterStr)
+	return tc.getEntities(baseUrl, invoicePageSize, filter.filterStr)
 }
 
 // Deletes a draft invoice, i.e. not booked. A 404 response is treated as
@@ -170,6 +172,33 @@ func (client *Client) BookInvoice(invoiceNo int, options ...BookInvoiceOptions) 
 type TypedClient[T any] struct {
 	client     *Client
 	entityType T
+}
+
+func (client *Client) GetInvoices(windows ...TimeWindow) ([]Invoice, error) {
+	window := YesterdayWindow()
+	if len(windows) > 0 {
+		window = windows[0]
+	}
+	filter := &Filter{}
+	filter.AndCondition("date", FilterOperatorGreaterThanOrEqual, window.From.Format("2006-01-02"))
+	filter.AndCondition("date", FilterOperatorLessThanOrEqual, window.To.Format("2006-01-02"))
+
+	tc := &TypedClient[Invoice]{client: client}
+	draft, err := tc.getEntities("invoices/drafts", invoicePageSize, filter.filterStr)
+	if err != nil {
+		return nil, err
+	}
+	if len(draft) > 0 {
+		log.Printf("GetInvoices: %d draft invoices found", len(draft))
+	}
+	booked, err := tc.getEntities("invoices/booked", invoicePageSize, filter.filterStr)
+	if err != nil {
+		return nil, err
+	}
+	if len(booked) > 0 {
+		log.Printf("GetInvoices: %d booked invoices found", len(booked))
+	}
+	return append(draft, booked...), nil
 }
 
 func (client *Client) GetBookedInvoices(pagesize int) (invoices []Invoice, err error) {

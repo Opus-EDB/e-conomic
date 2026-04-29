@@ -6,10 +6,59 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const journalApiVersion = "v14.0.1"
 const journalDraftEntryBaseUrl = "/journalsapi/" + journalApiVersion + "/draft-entries"
+const bookedEntriesApiBaseUrl = "/bookedEntriesapi/v4.0.0/booked-entries"
+
+type TimeWindow struct {
+	From time.Time
+	To   time.Time
+}
+
+func YesterdayWindow() TimeWindow {
+	loc, _ := time.LoadLocation("Europe/Copenhagen")
+	yesterday := time.Now().In(loc).AddDate(0, 0, -1)
+	return TimeWindow{
+		From: time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, loc),
+		To:   time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 23, 59, 59, 0, loc),
+	}
+}
+
+func (client *Client) GetJournalEntries(journalNumber int, windows ...TimeWindow) ([]JournalEntry, error) {
+	window := YesterdayWindow()
+	if len(windows) > 0 {
+		window = windows[0]
+	}
+	dateFilter := fmt.Sprintf("date$gte:%s$and:date$lte:%s",
+		window.From.Format(time.RFC3339),
+		window.To.Format(time.RFC3339),
+	)
+	draftFilter := dateFilter
+	if journalNumber != 0 {
+		draftFilter += fmt.Sprintf("$and:journalNumber$eq:%d", journalNumber)
+	}
+	draftParams := url.Values{"filter": {draftFilter}}
+	bookedParams := url.Values{"filter": {dateFilter}}
+
+	draft, err := getAllPaged[JournalEntry](client, journalDraftEntryBaseUrl+"/paged", draftParams)
+	if err != nil {
+		return nil, err
+	}
+	if len(draft) > 0 {
+		log.Printf("GetJournalEntries: %d draft entries found", len(draft))
+	}
+	booked, err := getAllPaged[JournalEntry](client, bookedEntriesApiBaseUrl+"/paged", bookedParams)
+	if err != nil {
+		return nil, err
+	}
+	if len(booked) > 0 {
+		log.Printf("GetJournalEntries: %d booked entries found", len(booked))
+	}
+	return append(draft, booked...), nil
+}
 
 type JournalEntry struct {
 	EntryTypeNumber     int         `json:"entryTypeNumber"`
@@ -110,7 +159,7 @@ func (client *Client) GetBookedCashPaymentsById(id int) ([]JournalEntry, error) 
 	params := url.Values{
 		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
 	}
-	err := client.callAPI("/bookedEntriesapi/v4.0.0/booked-entries", http.MethodGet, params, nil, &resp)
+	err := client.callAPI(bookedEntriesApiBaseUrl, http.MethodGet, params, nil, &resp)
 	if err != nil {
 		log.Printf("Error: %s", err)
 	}

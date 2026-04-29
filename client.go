@@ -211,6 +211,7 @@ func (client *Client) callAPI(endpoint string, method string, params url.Values,
 	return lastErr
 }
 
+// getEntities uses the REST API (callRestAPI) and CollectionReponse. Determines remaining pages from Pagination.Results in the first response.
 func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int, filter string) (entities []T, err error) {
 	client := tc.client
 	results := CollectionReponse[T]{}
@@ -236,6 +237,46 @@ func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int, filter strin
 		}
 	}
 	return
+}
+
+// getAllPaged fetches all pages from a paged endpoint. Handles both ItemsReponse-wrapped and raw JSON array responses.
+// For wrapped responses, the last page is detected when fewer items are returned than the page size, or when PageSize == 0.
+// For raw array responses, the last page is detected when fewer than DEFAULT_PAGE_SIZE items are returned.
+func getAllPaged[T any](client *Client, baseURL string, params url.Values) ([]T, error) {
+	var all []T
+	for page := 0; ; page++ {
+		p := url.Values{}
+		for k, v := range params {
+			p[k] = v
+		}
+		if page > 0 {
+			p.Set("skippages", strconv.Itoa(page))
+		}
+		var raw json.RawMessage
+		if err := client.callAPI(baseURL, http.MethodGet, p, nil, &raw); err != nil {
+			return nil, err
+		}
+		if len(raw) > 0 && raw[0] == '[' {
+			var items []T
+			if err := json.Unmarshal(raw, &items); err != nil {
+				return nil, err
+			}
+			all = append(all, items...)
+			if len(items) < DEFAULT_PAGE_SIZE {
+				break
+			}
+			continue
+		}
+		resp := ItemsReponse[T]{}
+		if err := json.Unmarshal(raw, &resp); err != nil {
+			return nil, err
+		}
+		all = append(all, resp.Items...)
+		if len(resp.Items) < resp.Pagination.PageSize || resp.Pagination.PageSize == 0 {
+			break
+		}
+	}
+	return all, nil
 }
 
 // function to get the last entity (e.g. customer contact)?
