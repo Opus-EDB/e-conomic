@@ -239,7 +239,9 @@ func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int, filter strin
 	return
 }
 
-// getAllPaged uses the journals API (callAPI) and ItemsReponse. Detects the last page when fewer items are returned than the page size, or when the API returns no pagination metadata (PageSize == 0).
+// getAllPaged fetches all pages from a paged endpoint. Handles both ItemsReponse-wrapped and raw JSON array responses.
+// For wrapped responses, the last page is detected when fewer items are returned than the page size, or when PageSize == 0.
+// For raw array responses, the last page is detected when fewer than DEFAULT_PAGE_SIZE items are returned.
 func getAllPaged[T any](client *Client, baseURL string, params url.Values) ([]T, error) {
 	var all []T
 	for page := 0; ; page++ {
@@ -250,8 +252,23 @@ func getAllPaged[T any](client *Client, baseURL string, params url.Values) ([]T,
 		if page > 0 {
 			p.Set("skippages", strconv.Itoa(page))
 		}
+		var raw json.RawMessage
+		if err := client.callAPI(baseURL, http.MethodGet, p, nil, &raw); err != nil {
+			return nil, err
+		}
+		if len(raw) > 0 && raw[0] == '[' {
+			var items []T
+			if err := json.Unmarshal(raw, &items); err != nil {
+				return nil, err
+			}
+			all = append(all, items...)
+			if len(items) < DEFAULT_PAGE_SIZE {
+				break
+			}
+			continue
+		}
 		resp := ItemsReponse[T]{}
-		if err := client.callAPI(baseURL, http.MethodGet, p, nil, &resp); err != nil {
+		if err := json.Unmarshal(raw, &resp); err != nil {
 			return nil, err
 		}
 		all = append(all, resp.Items...)

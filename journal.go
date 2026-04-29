@@ -32,23 +32,25 @@ func (client *Client) GetJournalEntries(journalNumber int, windows ...TimeWindow
 	if len(windows) > 0 {
 		window = windows[0]
 	}
-	filter := fmt.Sprintf("date$gte:%s$and:date$lte:%s",
+	dateFilter := fmt.Sprintf("date$gte:%s$and:date$lte:%s",
 		window.From.Format(time.RFC3339),
 		window.To.Format(time.RFC3339),
 	)
+	draftFilter := dateFilter
 	if journalNumber != 0 {
-		filter += fmt.Sprintf("$and:journalNumber$eq:%d", journalNumber)
+		draftFilter += fmt.Sprintf("$and:journalNumber$eq:%d", journalNumber)
 	}
-	params := url.Values{"filter": {filter}}
+	draftParams := url.Values{"filter": {draftFilter}}
+	bookedParams := url.Values{"filter": {dateFilter}}
 
-	draft, err := getAllPaged[JournalEntry](client, journalDraftEntryBaseUrl+"/paged", params)
+	draft, err := getAllPaged[JournalEntry](client, journalDraftEntryBaseUrl+"/paged", draftParams)
 	if err != nil {
 		return nil, err
 	}
 	if len(draft) > 0 {
 		log.Printf("GetJournalEntries: %d draft entries found", len(draft))
 	}
-	booked, err := getAllPaged[JournalEntry](client, bookedEntriesApiBaseUrl+"/paged", params)
+	booked, err := getAllPaged[JournalEntry](client, bookedEntriesApiBaseUrl+"/paged", bookedParams)
 	if err != nil {
 		return nil, err
 	}
