@@ -39,6 +39,13 @@ type ItemsReponse[T any] struct {
 	Self       string     `json:"self"`
 }
 
+// CursorResponse is used by cursor-based pagination endpoints (no /paged suffix).
+// Cursor is absent when there are no more items.
+type CursorResponse[T any] struct {
+	Cursor string `json:"cursor"`
+	Items  []T    `json:"items"`
+}
+
 type Pagination struct {
 	FirstPage            string `json:"firstPage"`
 	NextPage             string `json:"nextPage"`

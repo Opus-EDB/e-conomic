@@ -33,7 +33,7 @@ func (client *Client) assertClientIsConfigured() {
 }
 
 const (
-	DEFAULT_PAGE_SIZE = 50
+	DEFAULT_PAGE_SIZE = 100
 	maxRetries        = 4
 	baseDelay         = time.Second
 )
@@ -239,42 +239,28 @@ func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int, filter strin
 	return
 }
 
-// getAllPaged fetches all pages from a paged endpoint. Handles both ItemsReponse-wrapped and raw JSON array responses.
-// For wrapped responses, the last page is detected when fewer items are returned than the page size, or when PageSize == 0.
-// For raw array responses, the last page is detected when fewer than DEFAULT_PAGE_SIZE items are returned.
-func getAllPaged[T any](client *Client, baseURL string, params url.Values) ([]T, error) {
+// getAllCursor fetches all items from a cursor-based pagination endpoint.
+// The cursor is absent in the response when there are no more items.
+func getAllCursor[T any](client *Client, baseURL string, params url.Values) ([]T, error) {
 	var all []T
-	for page := 0; ; page++ {
+	cursor := ""
+	for {
 		p := url.Values{}
 		for k, v := range params {
 			p[k] = v
 		}
-		if page > 0 {
-			p.Set("skippages", strconv.Itoa(page))
+		if cursor != "" {
+			p.Set("cursor", cursor)
 		}
-		var raw json.RawMessage
-		if err := client.callAPI(baseURL, http.MethodGet, p, nil, &raw); err != nil {
-			return nil, err
-		}
-		if len(raw) > 0 && raw[0] == '[' {
-			var items []T
-			if err := json.Unmarshal(raw, &items); err != nil {
-				return nil, err
-			}
-			all = append(all, items...)
-			if len(items) < DEFAULT_PAGE_SIZE {
-				break
-			}
-			continue
-		}
-		resp := ItemsReponse[T]{}
-		if err := json.Unmarshal(raw, &resp); err != nil {
+		resp := CursorResponse[T]{}
+		if err := client.callAPI(baseURL, http.MethodGet, p, nil, &resp); err != nil {
 			return nil, err
 		}
 		all = append(all, resp.Items...)
-		if len(resp.Items) < resp.Pagination.PageSize || resp.Pagination.PageSize == 0 {
+		if resp.Cursor == "" {
 			break
 		}
+		cursor = resp.Cursor
 	}
 	return all, nil
 }

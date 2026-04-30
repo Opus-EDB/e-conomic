@@ -43,14 +43,14 @@ func (client *Client) GetJournalEntries(journalNumber int, windows ...TimeWindow
 	draftParams := url.Values{"filter": {draftFilter}}
 	bookedParams := url.Values{"filter": {dateFilter}}
 
-	draft, err := getAllPaged[JournalEntry](client, journalDraftEntryBaseUrl+"/paged", draftParams)
+	draft, err := getAllCursor[JournalEntry](client, journalDraftEntryBaseUrl, draftParams)
 	if err != nil {
 		return nil, err
 	}
 	if len(draft) > 0 {
 		log.Printf("GetJournalEntries: %d draft entries found", len(draft))
 	}
-	booked, err := getAllPaged[JournalEntry](client, bookedEntriesApiBaseUrl+"/paged", bookedParams)
+	booked, err := getAllCursor[JournalEntry](client, bookedEntriesApiBaseUrl, bookedParams)
 	if err != nil {
 		return nil, err
 	}
