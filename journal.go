@@ -41,7 +41,11 @@ func (client *Client) GetJournalEntries(journalNumber int, windows ...TimeWindow
 		draftFilter += fmt.Sprintf("$and:journalNumber$eq:%d", journalNumber)
 	}
 	draftParams := url.Values{"filter": {draftFilter}}
-	bookedParams := url.Values{"filter": {dateFilter}}
+	bookedFilter := dateFilter
+	if journalNumber != 0 {
+		bookedFilter += fmt.Sprintf("$and:journalNumber$eq:%d", journalNumber)
+	}
+	bookedParams := url.Values{"filter": {bookedFilter}}
 
 	draft, err := getAllCursor[JournalEntry](client, journalDraftEntryBaseUrl, draftParams)
 	if err != nil {
