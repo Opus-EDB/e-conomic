@@ -41,11 +41,7 @@ func (client *Client) GetJournalEntries(journalNumber int, windows ...TimeWindow
 		draftFilter += fmt.Sprintf("$and:journalNumber$eq:%d", journalNumber)
 	}
 	draftParams := url.Values{"filter": {draftFilter}}
-	bookedFilter := dateFilter
-	if journalNumber != 0 {
-		bookedFilter += fmt.Sprintf("$and:journalNumber$eq:%d", journalNumber)
-	}
-	bookedParams := url.Values{"filter": {bookedFilter}}
+	bookedParams := url.Values{"filter": {dateFilter}}
 
 	draft, err := getAllCursor[JournalEntry](client, journalDraftEntryBaseUrl, draftParams)
 	if err != nil {
@@ -57,6 +53,15 @@ func (client *Client) GetJournalEntries(journalNumber int, windows ...TimeWindow
 	booked, err := getAllCursor[JournalEntry](client, bookedEntriesApiBaseUrl, bookedParams)
 	if err != nil {
 		return nil, err
+	}
+	if journalNumber != 0 {
+		filtered := booked[:0]
+		for _, e := range booked {
+			if e.JournalNumber == journalNumber {
+				filtered = append(filtered, e)
+			}
+		}
+		booked = filtered
 	}
 	if len(booked) > 0 {
 		log.Printf("GetJournalEntries: %d booked entries found", len(booked))
