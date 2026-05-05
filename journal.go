@@ -131,6 +131,23 @@ func (client *Client) GetCashPaymentById(id int) (JournalEntry, error) {
 	return jes[0], err
 }
 
+// GetAllJournalEntriesByVoucherNumber fetches all draft and booked entries for a voucher number across all time.
+func (client *Client) GetAllJournalEntriesByVoucherNumber(voucherNumber int) ([]JournalEntry, error) {
+	params := url.Values{"filter": {fmt.Sprintf("voucherNumber$eq:%d", voucherNumber)}}
+	draft := ItemsReponse[JournalEntry]{}
+	if err := client.callAPI(journalDraftEntryBaseUrl, http.MethodGet, params, nil, &draft); err != nil {
+		return nil, err
+	}
+	booked := ItemsReponse[JournalEntry]{}
+	if err := client.callAPI(bookedEntriesApiBaseUrl, http.MethodGet, params, nil, &booked); err != nil {
+		return nil, err
+	}
+	for _, e := range booked.Items {
+		log.Printf("GetAllJournalEntriesByVoucherNumber: booked entry voucherNumber=%d amount=%s journalNumber=%d", e.VoucherNumber, e.Amount, e.JournalNumber)
+	}
+	return append(draft.Items, booked.Items...), nil
+}
+
 func (client *Client) GetCashPaymentsById(id int) ([]JournalEntry, error) {
 	jes := []JournalEntry{}
 	resp := ItemsReponse[JournalEntry]{}
