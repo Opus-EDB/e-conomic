@@ -79,11 +79,13 @@ func (client *Client) UpdateOrCreateContact(customer Customer, contact *Customer
 			return nil
 		}
 	}
-	_, err = client.CreateCustomerContact(customer.CustomerNumber, *contact)
+	created, err := client.CreateCustomerContact(customer.CustomerNumber, *contact)
 	if err != nil {
 		log.Printf("Error: %s", err)
+		return err
 	}
-	return err
+	*contact = created
+	return nil
 }
 
 func (client *Client) CreateCustomerContact(customerNumber int, contact CustomerContact) (CustomerContact, error) {
