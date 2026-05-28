@@ -92,14 +92,22 @@ func getRightCustomerFromList(customers []Customer) Customer {
 	return customers[0]
 }
 
+func NormalizeCorporateId(id string) string {
+	if id == "0" {
+		return ""
+	}
+	return id
+}
+
 func (client *Client) GetCustomer(customer Customer) (*Customer, error) {
 	customerInEconomic, _ := client.GetCustomerByNumber(customer.CustomerNumber)
 	fmt.Printf("customer in E-co %+v\n", customerInEconomic)
-	if customerInEconomic.CustomerNumber != 0 && customerInEconomic.CorporateIdentificationNumber != customer.CorporateIdentificationNumber {
+	if customerInEconomic.CustomerNumber != 0 && NormalizeCorporateId(customerInEconomic.CorporateIdentificationNumber) != customer.CorporateIdentificationNumber {
 		customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
 		fmt.Printf("customers by org number %+v\n", customers)
 		if len(customers) == 0 {
 			// maybe the customer did not have a corporate identification number in E-co:
+			// this can return a different customer, so one needs to handle this in the main application's logic
 			if customerInEconomic.CorporateIdentificationNumber == "" && strconv.Itoa(customerInEconomic.CustomerNumber) == customer.CorporateIdentificationNumber {
 				fmt.Printf("Matching by customer number, but missing corporate id number for customer in E-co %+v\n", customerInEconomic)
 				return customerInEconomic, nil
@@ -175,6 +183,9 @@ func (client *Client) UpdateOrCreateCustomer(customer Customer, contact Customer
 }
 
 func (client *Client) FindCustomerByOrgNumber(org string) []Customer {
+	if org == "" {
+		return nil
+	}
 	filter := &Filter{}
 	filter.AndCondition("corporateIdentificationNumber", FilterOperatorEquals, org)
 	resp := CollectionReponse[Customer]{}
