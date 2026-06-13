@@ -114,9 +114,9 @@ func (client *Client) GetCustomer(customer Customer) (*Customer, error) {
 			}
 			return nil, nil
 		}
-		customer.CustomerNumber = getRightCustomerFromList(customers).CustomerNumber
-		fmt.Printf("right customer %+v\n", customer)
-		return &customer, nil
+		rightCustomer := getRightCustomerFromList(customers)
+		fmt.Printf("right customer %+v\n", rightCustomer)
+		return &rightCustomer, nil
 	} else if customerInEconomic.CustomerNumber == 0 {
 		return nil, nil
 	} else {
