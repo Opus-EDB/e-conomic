@@ -41,6 +41,19 @@ func (client *Client) GetContactByEmail(customerNumber int, email string) (*Cust
 	return nil, fmt.Errorf("No contact found for customer %d with e-mail %s\n", customerNumber, email)
 }
 
+func (client *Client) GetContactByName(customerNumber int, name string) (*CustomerContact, error) {
+	contacts, err := client.getAllCustomerContacts(customerNumber)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range contacts {
+		if c.Name == name {
+			return &c, nil
+		}
+	}
+	return nil, nil
+}
+
 func (client *Client) GetContactNumberByEmail(customerNumber int, email string) (int, error) {
 	contact, err := client.GetContactByEmail(customerNumber, email)
 	if err != nil {
@@ -86,6 +99,13 @@ func (client *Client) UpdateOrCreateContact(customer Customer, contact *Customer
 	}
 	*contact = created
 	return nil
+}
+
+func (client *Client) UpdateCustomerContact(customerNumber int, contact CustomerContact) (CustomerContact, error) {
+	var updatedContact CustomerContact
+	path := fmt.Sprintf("customers/%d/contacts/%d", customerNumber, contact.CustomerContactNumber)
+	err := client.callRestAPI(path, http.MethodPut, contact, &updatedContact)
+	return updatedContact, err
 }
 
 func (client *Client) CreateCustomerContact(customerNumber int, contact CustomerContact) (CustomerContact, error) {
