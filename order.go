@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 const invoicePageSize = 500
@@ -213,37 +214,70 @@ func (client *Client) GetDraftInvoices(pagesize int) (invoices []Invoice, err er
 	return tc.getEntities(baseUrl, pagesize, "")
 }
 
-// Creates a credit note based on a booked invoice with a unique reference (usually your internal order number)
-// The credit note will have negative amounts and can be booked similarly to a regular invoice
-func (client *Client) CreditInvoiceByRef(ref string) (creditNote Invoice, err error) {
-	invoiceToCredit, err := client.GetBookedInvoiceByRef(ref)
+type CreditNoteOptions struct {
+	Date    string // YYYY-MM-DD; defaults to today if empty
+	DueDate string // YYYY-MM-DD; defaults to Date if empty
+}
+
+// Creates a draft credit note based on a booked invoice, identified by its booked invoice number.
+// The credit note will have negative amounts and, like any other draft, still needs to be booked
+// (e.g. via BookInvoice) to become final.
+func (client *Client) CreateCreditNoteForBookedInvoice(invoiceNo int, options ...CreditNoteOptions) (creditNote Invoice, err error) {
+	invoiceToCredit, err := client.GetBookedInvoice(invoiceNo)
 	if err != nil {
 		log.Printf("ERROR: %#v", err)
 		return
 	}
-	creditGrossAmount := -invoiceToCredit.GrossAmount
-	creditNetAmount := -invoiceToCredit.NetAmount
-	creditVatAmount := -invoiceToCredit.VatAmount
+	// copy the original invoice's lines, negating the unit price so the
+	// credit note mirrors it itemized rather than as a single lump sum
+	lines := make([]OrderLine, len(invoiceToCredit.Lines))
+	for i, line := range invoiceToCredit.Lines {
+		lines[i] = line
+		lines[i].UnitNetPrice = -line.UnitNetPrice
+	}
+	exchangeRate := invoiceToCredit.ExchangeRate
+	// a credit note is due immediately by default, not on whatever schedule the
+	// original invoice's payment terms implied - mirrors createInvoice()'s isCreditNote handling
+	date := time.Now().Format("2006-01-02")
+	dueDate := date
+	if len(options) > 0 {
+		if options[0].Date != "" {
+			date = options[0].Date
+			dueDate = date
+		}
+		if options[0].DueDate != "" {
+			dueDate = options[0].DueDate
+		}
+	}
 	order := &Order{
-		Date:     invoiceToCredit.Date,
-		Currency: invoiceToCredit.Currency,
+		Date:         date,
+		Currency:     invoiceToCredit.Currency,
+		DueDate:      &dueDate,
+		ExchangeRate: &exchangeRate, // use the original invoice's rate, not today's
 		Layout: Layout{
 			LayoutNumber: invoiceToCredit.Layout.LayoutNumber,
 		},
+		// the top-level CustomerNumber/PaymentTermsNumber fields are not part of
+		// the booked-invoice GET response (always 0); the real data is nested
+		// under customer/paymentTerms instead
 		PaymentTerms: PaymentTerms{
-			PaymentTermsNumber: invoiceToCredit.PaymentTermsNumber,
+			PaymentTermsNumber: invoiceToCredit.PaymentTerms.PaymentTermsNumber,
 		},
-		Customer: CustomerID{CustomerNumber: invoiceToCredit.CustomerNumber},
-		Recipient: Recipient{
-			Name:    invoiceToCredit.Recipient.Name,
-			Address: invoiceToCredit.Recipient.Address,
-			City:    invoiceToCredit.Recipient.City,
-			Zip:     invoiceToCredit.Recipient.Zip,
-			VatZone: VatZone{VatZoneNumber: invoiceToCredit.Recipient.VatZone.VatZoneNumber},
-		},
-		GrossAmount: &creditGrossAmount,
-		NetAmount:   creditNetAmount,
-		VatAmount:   creditVatAmount,
+		Customer:   CustomerID{CustomerNumber: invoiceToCredit.Customer.CustomerNumber},
+		Recipient:  *invoiceToCredit.Recipient,
+		Notes:      invoiceToCredit.Notes,
+		Lines:      lines,
+		ExternalId: invoiceToCredit.ExternalId,
+	}
+	if invoiceToCredit.References != nil {
+		order.References = &References{Other: invoiceToCredit.References.Other}
+		if invoiceToCredit.References.CustomerContact != nil {
+			customerContact := *invoiceToCredit.References.CustomerContact
+			order.References.CustomerContact = &customerContact
+		}
+	}
+	if invoiceToCredit.ProjectNumber > 0 {
+		order.Project = &Project{ProjectNumber: invoiceToCredit.ProjectNumber}
 	}
 	creditNote, err = client.CreateInvoice(order)
 	if err != nil {
