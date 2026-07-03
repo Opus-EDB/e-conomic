@@ -39,7 +39,9 @@ const (
 )
 
 func isRetryableStatus(code int) bool {
-	return code == http.StatusTooManyRequests || code >= 500
+	// 408 is E-conomic's "DownstreamServiceTimeout" (their backend timed out
+	// processing the request) — same transient class as 5xx, so retry it too.
+	return code == http.StatusTooManyRequests || code == http.StatusRequestTimeout || code >= 500
 }
 
 // backoffDelay returns how long to wait before the next attempt. For 429
