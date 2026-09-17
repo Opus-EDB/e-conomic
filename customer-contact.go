@@ -4,7 +4,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
+
+// normalizeContactName matches names the way E-conomic's own duplicate check
+// does. Creating a contact whose name differs from an existing one only in case
+// or surrounding whitespace is rejected with "This customer already has a
+// contact with the same name." (E06010), so an exact-match search would miss the
+// contact that is already there and then fail to create it - which is what
+// happened to a "Mona Gehrt " typed with a trailing space.
+func normalizeContactName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
 
 func getCustomerContactsBaseUrl(customerNumber int) string {
 	return fmt.Sprintf("customers/%d/contacts", customerNumber)
@@ -46,8 +57,9 @@ func (client *Client) GetContactByName(customerNumber int, name string) (*Custom
 	if err != nil {
 		return nil, err
 	}
+	wanted := normalizeContactName(name)
 	for _, c := range contacts {
-		if c.Name == name {
+		if normalizeContactName(c.Name) == wanted {
 			return &c, nil
 		}
 	}

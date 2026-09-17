@@ -92,23 +92,47 @@ func getRightCustomerFromList(customers []Customer) Customer {
 	return customers[0]
 }
 
+// NormalizeCorporateId reduces a CVR/org number to the digits it is made of, so
+// that the same company compares equal however it happened to be typed.
+//
+// E-conomic stores whatever it is given, and these numbers reach us from order
+// forms: ".10521815", "DK 10 52 18 15", "10.521.815". Comparing those raw against
+// what E-conomic holds made an existing customer look like a new one, and the
+// caller then tried to create a customer on a number that was already taken.
+//
+// "0" still normalizes to empty: it is the placeholder some orders carry for "no
+// corporate id at all", not a company that happens to be numbered zero.
 func NormalizeCorporateId(id string) string {
 	if id == "0" {
 		return ""
 	}
-	return id
+	// Byte-wise on purpose: UTF-8 never encodes a non-ASCII character with a byte
+	// in the ASCII range, so this keeps exactly the ASCII digits and drops
+	// everything else, invalid UTF-8 included. Non-ASCII digits (Arabic-Indic,
+	// full-width) are dropped rather than kept, which is what we want - the result
+	// has to parse as an E-conomic customer number.
+	digits := make([]byte, 0, len(id))
+	for i := 0; i < len(id); i++ {
+		if id[i] >= '0' && id[i] <= '9' {
+			digits = append(digits, id[i])
+		}
+	}
+	return string(digits)
 }
 
 func (client *Client) GetCustomer(customer Customer) (*Customer, error) {
 	customerInEconomic, _ := client.GetCustomerByNumber(customer.CustomerNumber)
 	fmt.Printf("customer in E-co %+v\n", customerInEconomic)
-	if customerInEconomic.CustomerNumber != 0 && NormalizeCorporateId(customerInEconomic.CorporateIdentificationNumber) != customer.CorporateIdentificationNumber {
-		customers := client.FindCustomerByOrgNumber(customer.CorporateIdentificationNumber)
+	// Normalize BOTH sides: normalizing only E-conomic's copy meant a corporate id
+	// typed with punctuation never matched the customer it belongs to.
+	wantedCorporateId := NormalizeCorporateId(customer.CorporateIdentificationNumber)
+	if customerInEconomic.CustomerNumber != 0 && NormalizeCorporateId(customerInEconomic.CorporateIdentificationNumber) != wantedCorporateId {
+		customers := client.FindCustomerByOrgNumber(wantedCorporateId)
 		fmt.Printf("customers by org number %+v\n", customers)
 		if len(customers) == 0 {
 			// maybe the customer did not have a corporate identification number in E-co:
 			// this can return a different customer, so one needs to handle this in the main application's logic
-			if customerInEconomic.CorporateIdentificationNumber == "" && strconv.Itoa(customerInEconomic.CustomerNumber) == customer.CorporateIdentificationNumber {
+			if customerInEconomic.CorporateIdentificationNumber == "" && strconv.Itoa(customerInEconomic.CustomerNumber) == wantedCorporateId {
 				fmt.Printf("Matching by customer number, but missing corporate id number for customer in E-co %+v\n", customerInEconomic)
 				return customerInEconomic, nil
 			}
