@@ -132,14 +132,26 @@ func (client *Client) GetCashPaymentById(id int) (JournalEntry, error) {
 }
 
 // GetAllJournalEntriesByVoucherNumber fetches all draft and booked entries for a voucher number across all time.
-func (client *Client) GetAllJournalEntriesByVoucherNumber(voucherNumber int) ([]JournalEntry, error) {
-	params := url.Values{"filter": {fmt.Sprintf("voucherNumber$eq:%d", voucherNumber)}}
+// GetAllJournalEntriesByVoucherNumber returns a voucher's entries from the whole
+// of time, drafts and booked together, for callers that need an order's complete
+// history rather than one window of it.
+//
+// Only the drafts are restricted to the journal. That is where a test
+// environment's colliding voucher numbers turn up, since it posts into its own
+// kladde in the same agreement and nobody books that one. The booked half cannot
+// be filtered even in principle: E-conomic returns booked entries with
+// journalNumber 0, so matching on the journal would discard all of them — and
+// these callers need them. Missing booked entries would make a cancelled-event
+// order whose sale is booked and whose cancellation is not look unbalanced.
+func (client *Client) GetAllJournalEntriesByVoucherNumber(voucherNumber, journalNumber int) ([]JournalEntry, error) {
+	draftParams := url.Values{"filter": {fmt.Sprintf("voucherNumber$eq:%d$and:journalNumber$eq:%d", voucherNumber, journalNumber)}}
+	bookedParams := url.Values{"filter": {fmt.Sprintf("voucherNumber$eq:%d", voucherNumber)}}
 	draft := ItemsReponse[JournalEntry]{}
-	if err := client.callAPI(journalDraftEntryBaseUrl, http.MethodGet, params, nil, &draft); err != nil {
+	if err := client.callAPI(journalDraftEntryBaseUrl, http.MethodGet, draftParams, nil, &draft); err != nil {
 		return nil, err
 	}
 	booked := ItemsReponse[JournalEntry]{}
-	if err := client.callAPI(bookedEntriesApiBaseUrl, http.MethodGet, params, nil, &booked); err != nil {
+	if err := client.callAPI(bookedEntriesApiBaseUrl, http.MethodGet, bookedParams, nil, &booked); err != nil {
 		return nil, err
 	}
 	for _, e := range booked.Items {
@@ -197,10 +209,20 @@ func (client *Client) GetBookedCashPaymentsById(id int) ([]JournalEntry, error) 
 
 // GetDraftEntriesByVoucherNumber returns all draft entries with the given voucher number.
 // Returns an empty slice and no error if none are found.
-func (client *Client) GetDraftEntriesByVoucherNumber(voucherNumber int) ([]JournalEntry, error) {
+// GetDraftEntriesByVoucherNumber returns one voucher's draft entries from one
+// journal.
+//
+// The journal number is mandatory because callers delete what this returns. Test
+// environments post into the same agreement under their own journal, and their
+// order ids collide with production's, so a lookup by voucher number alone
+// returns both. That is how production order 1188127 lost its entries: the test
+// environment created its own order 1188127, asked for the voucher's drafts to
+// clear them before writing its own, and was handed production's two lines as
+// well — which it then deleted.
+func (client *Client) GetDraftEntriesByVoucherNumber(voucherNumber, journalNumber int) ([]JournalEntry, error) {
 	resp := ItemsReponse[JournalEntry]{}
 	params := url.Values{
-		"filter": {fmt.Sprintf("voucherNumber$eq:%d", voucherNumber)},
+		"filter": {fmt.Sprintf("voucherNumber$eq:%d$and:journalNumber$eq:%d", voucherNumber, journalNumber)},
 	}
 	err := client.callAPI(journalDraftEntryBaseUrl, http.MethodGet, params, nil, &resp)
 	if err != nil {
@@ -219,10 +241,18 @@ func (client *Client) BookAllEntries(journalNumber int) error {
 	return client.callAPI(fmt.Sprintf("/journalsapi/%s/journals/%d/book", journalApiVersion, journalNumber), http.MethodPost, nil, nil, nil)
 }
 
-func (client *Client) GetJournalBalanceById(id int) (float64, error) {
+// GetJournalBalanceById sums the draft entries on one voucher in one journal.
+//
+// The journal number is not optional, because a voucher number alone does not
+// identify an order's entries. Test environments post into the same agreement
+// under their own journal ("test - Salg med kort"), and their order ids collide
+// with production's, so filtering on voucherNumber alone mixes the two: order
+// 1188127 read -369 in admin — one ticket on event 11343 — while its real
+// entries were -1.167 on event 11570.
+func (client *Client) GetJournalBalanceById(id, journalNumber int) (float64, error) {
 	resp := ItemsReponse[JournalEntry]{}
 	params := url.Values{
-		"filter": {fmt.Sprintf("voucherNumber$eq:%d", id)},
+		"filter": {fmt.Sprintf("voucherNumber$eq:%d$and:journalNumber$eq:%d", id, journalNumber)},
 	}
 	err := client.callAPI(journalDraftEntryBaseUrl, http.MethodGet, params, nil, &resp)
 	if err != nil {
