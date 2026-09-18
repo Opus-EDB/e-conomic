@@ -38,10 +38,47 @@ const (
 	baseDelay         = time.Second
 )
 
-func isRetryableStatus(code int) bool {
-	// 408 is E-conomic's "DownstreamServiceTimeout" (their backend timed out
-	// processing the request) — same transient class as 5xx, so retry it too.
-	return code == http.StatusTooManyRequests || code == http.StatusRequestTimeout || code >= 500
+// isIdempotent reports whether repeating a request is safe when we cannot tell
+// whether the first one took effect. GET, HEAD, PUT and DELETE are idempotent by
+// definition; POST and PATCH are not, and repeating one that was already applied
+// can create a second record.
+//
+// PATCH is excluded on principle rather than on evidence: a patch document is
+// free to append or increment, so HTTP does not call it idempotent, even though
+// the only one we send today (SetEInvoicing, a "replace" of a single field) would
+// be safe to repeat. The cost of that caution is one failed SetEInvoicing on a
+// 504; the cost of the opposite mistake is duplicated data nobody notices.
+func isIdempotent(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodPut, http.MethodDelete, http.MethodOptions:
+		return true
+	}
+	return false
+}
+
+// isRetryableStatus says whether a failed attempt is worth repeating.
+//
+// What decides it is whether E-conomic itself received the request. 408 is their
+// "DownstreamServiceTimeout" and 504 is the gateway's "the origin web server did
+// not respond within the allowed time" — both mean the request reached them and
+// the outcome is unknown: it may well have been applied. Repeating a
+// non-idempotent request in that state duplicates it, which is exactly how order
+// 1185688 ended up with two identical Billetgebyr journal entries on 2026-09-08,
+// the second posted by this retry five minutes after the first.
+//
+// Everything else stays retryable for every method. A 429 was refused before any
+// work was done, and the connection-level failures that dominate here ("upstream
+// connect error or disconnect/reset before headers") never reach the origin —
+// one of those retried a journal entry on 2026-08-23 and correctly created
+// nothing twice. 502 and 503 are left in for the same reason, though they are
+// the least certain of the set: widen this if a duplicate ever turns up behind
+// one.
+func isRetryableStatus(method string, code int) bool {
+	switch code {
+	case http.StatusRequestTimeout, http.StatusGatewayTimeout: // 408, 504
+		return isIdempotent(method)
+	}
+	return code == http.StatusTooManyRequests || code >= 500
 }
 
 // backoffDelay returns how long to wait before the next attempt. For 429
@@ -101,7 +138,7 @@ func (client *Client) callRestAPI(endpoint, method string, request, response any
 		res.Body.Close()
 		log.Printf("e-conomic/REST %s %s => %d", method, endpoint, res.StatusCode)
 
-		if isRetryableStatus(res.StatusCode) {
+		if isRetryableStatus(method, res.StatusCode) {
 			lastErr = &APIError{
 				StatusCode: res.StatusCode,
 				body:       fmt.Sprintf("error calling e-conomic (%s %s) err: %s", url, method, body.String()),
@@ -185,7 +222,7 @@ func (client *Client) callAPI(endpoint string, method string, params url.Values,
 			continue
 		}
 
-		if isRetryableStatus(res.StatusCode) {
+		if isRetryableStatus(method, res.StatusCode) {
 			resBody, _ := io.ReadAll(res.Body)
 			res.Body.Close()
 			lastErr = fmt.Errorf("error in calling e-conomic (%s %s => %d) %s", method, endpoint, res.StatusCode, string(resBody))
