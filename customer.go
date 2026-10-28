@@ -100,12 +100,14 @@ func getRightCustomerFromList(customers []Customer) Customer {
 // what E-conomic holds made an existing customer look like a new one, and the
 // caller then tried to create a customer on a number that was already taken.
 //
-// "0" still normalizes to empty: it is the placeholder some orders carry for "no
-// corporate id at all", not a company that happens to be numbered zero.
+// Leading zeros are dropped too ("0025781309" is CVR 25781309). The caller
+// derives the customer number by parsing the id as an integer, which loses them,
+// so keeping them here made the customer found under that number look like a
+// different company. A Danish CVR never starts with 0.
+//
+// "0" (and "000") normalizes to empty: it is the placeholder some orders carry
+// for "no corporate id at all", not a company that happens to be numbered zero.
 func NormalizeCorporateId(id string) string {
-	if id == "0" {
-		return ""
-	}
 	// Byte-wise on purpose: UTF-8 never encodes a non-ASCII character with a byte
 	// in the ASCII range, so this keeps exactly the ASCII digits and drops
 	// everything else, invalid UTF-8 included. Non-ASCII digits (Arabic-Indic,
@@ -113,6 +115,9 @@ func NormalizeCorporateId(id string) string {
 	// has to parse as an E-conomic customer number.
 	digits := make([]byte, 0, len(id))
 	for i := 0; i < len(id); i++ {
+		if id[i] == '0' && len(digits) == 0 {
+			continue
+		}
 		if id[i] >= '0' && id[i] <= '9' {
 			digits = append(digits, id[i])
 		}
