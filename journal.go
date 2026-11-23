@@ -131,18 +131,26 @@ func (client *Client) GetCashPaymentById(id int) (JournalEntry, error) {
 	return jes[0], err
 }
 
-// GetAllJournalEntriesByVoucherNumber fetches all draft and booked entries for a voucher number across all time.
 // GetAllJournalEntriesByVoucherNumber returns a voucher's entries from the whole
 // of time, drafts and booked together, for callers that need an order's complete
 // history rather than one window of it.
+//
+// The two halves have different shapes, so their amounts cannot simply be added
+// up. A draft is one line carrying both an account and a contra account. A booked
+// entry is one line per account, with no contra account and the VAT split off
+// onto a line of its own, so a booked voucher always sums to zero. A caller that
+// adds every amount therefore sees a booked sale as nothing at all, and a
+// cancelled-event order whose sale is booked and whose cancellation is still a
+// draft as unbalanced by the cancellation. To get a booked entry's draft
+// equivalent, read the lines on the accounts the drafts used as contra accounts,
+// with the sign reversed; they carry the gross amount.
 //
 // Only the drafts are restricted to the journal. That is where a test
 // environment's colliding voucher numbers turn up, since it posts into its own
 // kladde in the same agreement and nobody books that one. The booked half cannot
 // be filtered even in principle: E-conomic returns booked entries with
-// journalNumber 0, so matching on the journal would discard all of them — and
-// these callers need them. Missing booked entries would make a cancelled-event
-// order whose sale is booked and whose cancellation is not look unbalanced.
+// journalNumber 0, so matching on the journal would discard all of them. The same
+// 0 is what tells the booked entries in the result from the drafts.
 func (client *Client) GetAllJournalEntriesByVoucherNumber(voucherNumber, journalNumber int) ([]JournalEntry, error) {
 	draftParams := url.Values{"filter": {fmt.Sprintf("voucherNumber$eq:%d$and:journalNumber$eq:%d", voucherNumber, journalNumber)}}
 	bookedParams := url.Values{"filter": {fmt.Sprintf("voucherNumber$eq:%d", voucherNumber)}}
