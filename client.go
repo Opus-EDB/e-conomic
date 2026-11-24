@@ -250,30 +250,39 @@ func (client *Client) callAPI(endpoint string, method string, params url.Values,
 	return lastErr
 }
 
-// getEntities uses the REST API (callRestAPI) and CollectionReponse. Determines remaining pages from Pagination.Results in the first response.
+// getEntities uses the REST API (callRestAPI) and CollectionReponse, fetching
+// every page of baseUrl that matches filter. The number of pages comes from
+// Pagination.Results in the first response.
+//
+// Two things here are load-bearing; both were once wrong and made the paid-invoice
+// list both duplicate and lose invoices:
+//   - The filter goes on every page. Without it, page 2 onwards were pages of the
+//     unfiltered collection, while the page count came from the filtered one.
+//   - Each page decodes into a fresh response. encoding/json reuses a slice's
+//     backing array, so decoding page 2 into the struct page 1 came from
+//     overwrote page 1's entries in place (already handed out as `entities`), and
+//     fields page 2 left out kept page 1's values.
 func (tc *TypedClient[T]) getEntities(baseUrl string, pageSize int, filter string) (entities []T, err error) {
 	client := tc.client
-	results := CollectionReponse[T]{}
-	url := baseUrl + fmt.Sprintf("?filter=%s&pagesize=%d", filter, pageSize)
-	err = client.callRestAPI(url, http.MethodGet, nil, &results)
-	if err != nil {
-		log.Printf("ERROR: %#v", err)
-		return
-	}
-	entities = results.Collection
-	numberOfResults := results.Pagination.Results
-	numberOfPages := (numberOfResults / pageSize) + 1 // integer division (disregarding the remainder)
-	if numberOfPages > 1 {
-		for i := 1; i < numberOfPages; i++ {
-			url := fmt.Sprintf("%s?skippages=%d&pagesize=%d", baseUrl, i, pageSize)
-			fmt.Printf("URL: %s\n", url)
-			err = client.callRestAPI(url, http.MethodGet, nil, &results)
-			if err != nil {
-				log.Printf("ERROR: %#v", err)
-				return
-			}
-			entities = append(entities, results.Collection...)
+	numberOfPages := 1
+	for page := 0; page < numberOfPages; page++ {
+		url := fmt.Sprintf("%s?pagesize=%d&skippages=%d", baseUrl, pageSize, page)
+		if filter != "" {
+			url += "&filter=" + filter
 		}
+		results := CollectionReponse[T]{}
+		err = client.callRestAPI(url, http.MethodGet, nil, &results)
+		if err != nil {
+			log.Printf("ERROR: %#v", err)
+			return nil, err
+		}
+		if page == 0 {
+			numberOfPages = (results.Pagination.Results + pageSize - 1) / pageSize
+		}
+		if len(results.Collection) == 0 {
+			break
+		}
+		entities = append(entities, results.Collection...)
 	}
 	return
 }
